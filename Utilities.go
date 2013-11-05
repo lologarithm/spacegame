@@ -1,6 +1,7 @@
 package main
 
 import "time"
+import "log"
 
 func trace(s string) (string, time.Time) {
 	log.Println("START:", s)

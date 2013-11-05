@@ -24,6 +24,7 @@ type Server struct {
 }
 
 func (s *Server) handleMessage() {
+	// TODO: Add timeout on read to check for stale connections and add new user connections.
 	n, addr, err := s.conn.ReadFromUDP(s.input_buffer)
 	if err != nil {
 		fmt.Println("ERROR: ", err)
@@ -38,7 +39,6 @@ func (s *Server) handleMessage() {
 	}
 	if _, ok := s.connections[addr_str]; !ok {
 		s.connections[addr_str] = &Client{client_address: addr, incoming_bytes: make(chan []byte, 100)}
-		//fmt.Println("Spawning new goroutine for client!")
 		go s.connections[addr_str].ProcessBytes(s.incoming_requests, s.outgoing_player)
 	}
 	s.connections[addr_str].incoming_bytes <- s.input_buffer[0:n]
@@ -61,19 +61,14 @@ func ParseFrame(raw_bytes []byte) *MessageFrame {
 }
 
 func (s *Server) sendMessages() {
-	//count := 0
 	for {
 		msg := <-s.outgoing_player
-		//count += 1
 		if msg.destination.client_address == nil {
 			msg.destination = s.players[msg.destination.user.id]
 		}
 		if n, err := s.conn.WriteToUDP(msg.raw_bytes, msg.destination.client_address); err != nil {
 			fmt.Println("Error: ", err, " Bytes Written: ", n)
 		}
-		//if count % 100 == 0 {
-		//fmt.Printf("Sent messages: %v\n", count)
-		//}
 	}
 }
 
@@ -96,6 +91,8 @@ func (client *Client) ProcessBytes(to_client chan Message, outgoing_msg chan Mes
 				if msg_obj.frame.message_type == 0 {
 					msg_obj.destination = client
 					outgoing_msg <- msg_obj
+				} else if msg_obj.frame.message_type == 1 {
+					// Login player
 				} else {
 					to_client <- msg_obj
 				}
@@ -135,7 +132,7 @@ func checkError(err error) {
 	}
 }
 
-func RunServer(exit chan int, requests chan Message) {
+func RunServer(exit chan int, requests chan Message, outgoing_player chan Message) {
 	udpAddr, err := net.ResolveUDPAddr("udp", port)
 	checkError(err)
 	fmt.Println("Now listening on port", port)
@@ -143,8 +140,8 @@ func RunServer(exit chan int, requests chan Message) {
 	var s Server
 	s.connections = make(map[string]*Client, 512)
 	s.input_buffer = make([]byte, 1024)
-	s.outgoing_player = make(chan Message, 1024)
 	s.incoming_requests = requests
+	s.outgoing_player = outgoing_player
 	s.conn, err = net.ListenUDP("udp", udpAddr)
 	checkError(err)
 
