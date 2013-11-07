@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 )
 
 const (
@@ -15,8 +16,8 @@ const (
 
 type Server struct {
 	conn              *net.UDPConn
-	players           map[int32]*Client
 	connections       map[string]*Client
+	disconnect_player chan Client
 	outgoing_player   chan Message
 	incoming_requests chan Message
 	input_buffer      []byte
@@ -25,27 +26,30 @@ type Server struct {
 
 func (s *Server) handleMessage() {
 	// TODO: Add timeout on read to check for stale connections and add new user connections.
+	s.conn.SetReadDeadline(time.Now().Add(time.Second))
 	n, addr, err := s.conn.ReadFromUDP(s.input_buffer)
 	if err != nil {
-		fmt.Println("ERROR: ", err)
 		return
 	}
 	addr_str := addr.String()
 	if n == 0 {
-		// send exit signal to client
-		fmt.Println("Disconnect from: ", addr_str)
-		close(s.connections[addr_str].incoming_bytes)
-		delete(s.connections, addr_str) // Expire the client goroutine.
+		s.DisconnectConn(addr_str)
 	}
 	if _, ok := s.connections[addr_str]; !ok {
 		s.connections[addr_str] = &Client{client_address: addr, incoming_bytes: make(chan []byte, 100)}
-		go s.connections[addr_str].ProcessBytes(s.incoming_requests, s.outgoing_player)
+		go s.connections[addr_str].ProcessBytes(s.incoming_requests, s.outgoing_player, s.disconnect_player)
 	}
 	s.connections[addr_str].incoming_bytes <- s.input_buffer[0:n]
 }
 
+func (s *Server) DisconnectConn(addr_str string) {
+	fmt.Println("Disconnect from: ", addr_str)
+	close(s.connections[addr_str].incoming_bytes)
+	delete(s.connections, addr_str)
+}
+
 func ParseFrame(raw_bytes []byte) *MessageFrame {
-	if len(raw_bytes) > 9 {
+	if len(raw_bytes) >= 9 {
 		mf := new(MessageFrame)
 		mf.message_type = raw_bytes[0]
 		var v int32
@@ -63,8 +67,7 @@ func ParseFrame(raw_bytes []byte) *MessageFrame {
 func (s *Server) sendMessages() {
 	for {
 		msg := <-s.outgoing_player
-		if msg.destination.client_address == nil {
-			msg.destination = s.players[msg.destination.user.id]
+		if msg.frame.message_type == 255 {
 		}
 		if n, err := s.conn.WriteToUDP(msg.raw_bytes, msg.destination.client_address); err != nil {
 			fmt.Println("Error: ", err, " Bytes Written: ", n)
@@ -76,10 +79,10 @@ type Client struct {
 	buffer         []byte
 	client_address *net.UDPAddr
 	incoming_bytes chan []byte
-	user           User
+	user           *User
 }
 
-func (client *Client) ProcessBytes(to_client chan Message, outgoing_msg chan Message) {
+func (client *Client) ProcessBytes(to_client chan Message, outgoing_msg chan Message, disconnect_player chan Client) {
 	for {
 		if dem_bytes, ok := <-client.incoming_bytes; !ok {
 			break
@@ -88,13 +91,15 @@ func (client *Client) ProcessBytes(to_client chan Message, outgoing_msg chan Mes
 			msg_frame := ParseFrame(client.buffer)
 			if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) >= len(client.buffer) {
 				msg_obj := client.parseMessage(msg_frame)
+				msg_obj.destination = client
 				if msg_obj.frame.message_type == 0 {
-					msg_obj.destination = client
 					outgoing_msg <- msg_obj
-				} else if msg_obj.frame.message_type == 1 {
-					// Login player
 				} else {
 					to_client <- msg_obj
+					if msg_obj.frame.message_type == 255 {
+						disconnect_player <- *client
+						break
+					}
 				}
 			}
 		}
@@ -119,7 +124,7 @@ func (m *Message) Content() []byte {
 }
 
 type MessageFrame struct {
-	message_type   byte
+	message_type   byte // 0: echo, 1: login_request 2: login success 3: login failure/logoff 4: physics update
 	from_user      int32
 	frame_length   int32
 	content_length int32
@@ -142,17 +147,20 @@ func RunServer(exit chan int, requests chan Message, outgoing_player chan Messag
 	s.input_buffer = make([]byte, 1024)
 	s.incoming_requests = requests
 	s.outgoing_player = outgoing_player
+	s.disconnect_player = make(chan Client, 512)
 	s.conn, err = net.ListenUDP("udp", udpAddr)
 	checkError(err)
 
 	go s.sendMessages()
-
+ML:
 	for {
 		select {
 		case <-exit:
 			fmt.Println("Killing Socket Server")
 			s.conn.Close()
-			break
+			break ML
+		case client_obj := <-s.disconnect_player:
+			s.DisconnectConn(client_obj.client_address.String())
 		default:
 			s.handleMessage()
 		}

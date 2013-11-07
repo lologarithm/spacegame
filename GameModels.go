@@ -6,51 +6,51 @@ import (
 )
 
 type User struct {
-	id         int32
-	characters []Character
+	Id              int32
+	Name            string
+	Characters      []Character
+	ActiveCharacter *Character
 }
 
 type Character struct {
 	EntityData // anonomous field gives character all entity fields
+	Health     int32
 }
 
 type EntityData struct {
-	id       int32      // Uniquely id this entity in space
-	speed    [2]float32 // speed in vector format
-	rotation float32    // speed of rotation around the Z axis (negative is counter clockwise)
-	position [2]float32 // coords x,y of entity
-	mass     float32    // mass effects physics!
+	Id               int32      // Uniquely id this entity in space
+	Position         [2]float32 // coords x,y of entity
+	Velocity         [2]float32 // speed in vector format
+	Rotation         float32    // Current heading
+	RotationVelocity float32    // speed of rotation around the Z axis (negative is counter clockwise)
+	Mass             float32    // mass effects physics!
 }
 
 type EntityUpdate struct {
-	update_type byte // 1 == login, 2 == logoff, 3 == physics update
-	ent_obj     Entity
+	UpdateType byte // 2 == login, 3 == logoff, 4 == physics update
+	EntityObj  Entity
 }
 
 type CelestialBody struct {
 	EntityData
-	body_type string // 'star' 'planet' 'asteroid'
+	BodyType string // 'star' 'planet' 'asteroid'
 }
 
 type Ship struct {
 	EntityData
-	hull string // something something darkside
+	Hull string // something something darkside
 }
 
-func (ship *Ship) CreateUpdateMessage() (m Message) {
-	m.frame = &MessageFrame{message_type: 3, frame_length: 9, content_length: 20}
+func (ship *Ship) UpdateBytes() []byte {
 	buf := new(bytes.Buffer)
-	buf.Grow(49)
-	buf.WriteByte(3)
-	binary.Write(buf, binary.LittleEndian, int32(0))
-	binary.Write(buf, binary.LittleEndian, int32(20))
-	binary.Write(buf, binary.LittleEndian, ship.position[0])
-	binary.Write(buf, binary.LittleEndian, ship.position[1])
-	binary.Write(buf, binary.LittleEndian, ship.speed[0])
-	binary.Write(buf, binary.LittleEndian, ship.speed[1])
-	binary.Write(buf, binary.LittleEndian, ship.rotation)
-	m.raw_bytes = buf.Bytes()
-	return
+	buf.Grow(24)
+	binary.Write(buf, binary.LittleEndian, ship.Position[0])
+	binary.Write(buf, binary.LittleEndian, ship.Position[1])
+	binary.Write(buf, binary.LittleEndian, ship.Velocity[0])
+	binary.Write(buf, binary.LittleEndian, ship.Velocity[1])
+	binary.Write(buf, binary.LittleEndian, ship.Rotation)
+	binary.Write(buf, binary.LittleEndian, ship.RotationVelocity)
+	return buf.Bytes()
 }
 
 type Entity interface {

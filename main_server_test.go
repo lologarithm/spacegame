@@ -5,13 +5,14 @@ import "bytes"
 import "encoding/binary"
 import "fmt"
 import "net"
-
 import "time"
 
-func TestConnect(t *testing.T) {
+func BenchmarkEcho(t *testing.B) {
 	//exit := make(chan int, 1)
-	//blah := make(chan Message, 200)
-	//go RunServer(exit, blah)
+	//incoming_requests := make(chan Message, 200)
+	//outgoing_player := make(chan Message, 200)
+	//go RunServer(exit, incoming_requests, outgoing_player)
+	//go ManageRequests(exit, incoming_requests, outgoing_player)
 	time.Sleep(1 * time.Second)
 	num_conn := 2000
 	conns := [2000]*net.UDPConn{}
@@ -68,5 +69,44 @@ func TestConnect(t *testing.T) {
 	//exit <- 1
 }
 
-func BenchmarkEcho(b *testing.B) {
+func TestLogin(t *testing.T) {
+	//exit := make(chan int, 1)
+	//incoming_requests := make(chan Message, 200)
+	//outgoing_player := make(chan Message, 200)
+	//go RunServer(exit, incoming_requests, outgoing_player)
+	//go ManageRequests(exit, incoming_requests, outgoing_player)
+	//time.Sleep(1 * time.Second)
+	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	conn, err := net.DialUDP("udp", nil, ra)
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	fmt.Println("Connections Complete")
+	message_bytes := new(bytes.Buffer)
+	message_bytes.WriteByte(1)
+	binary.Write(message_bytes, binary.LittleEndian, int32(0))
+	binary.Write(message_bytes, binary.LittleEndian, int32(1))
+	message_bytes.WriteByte(97)
+	conn.Write(message_bytes.Bytes())
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	buf := make([]byte, 1024)
+	for i := 0; i < 2; i++ {
+		fmt.Println("STARTING TEST READ")
+		n, err := conn.Read(buf[0:])
+		if err != nil {
+			fmt.Println(err)
+			t.FailNow()
+		}
+		fmt.Println(buf[0:n])
+	}
+	conn.Write([]byte{255, 0, 0, 0, 0, 0, 0, 0, 0})
+	conn.Close()
 }
