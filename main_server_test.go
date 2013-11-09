@@ -14,8 +14,8 @@ func BenchmarkEcho(t *testing.B) {
 	//go RunServer(exit, incoming_requests, outgoing_player)
 	//go ManageRequests(exit, incoming_requests, outgoing_player)
 	time.Sleep(1 * time.Second)
-	num_conn := 2000
-	conns := [2000]*net.UDPConn{}
+	num_conn := 1000
+	conns := [1000]*net.UDPConn{}
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
 		fmt.Println(err)
@@ -29,6 +29,16 @@ func BenchmarkEcho(t *testing.B) {
 			t.FailNow()
 		}
 		conns[i] = con
+		message_bytes := new(bytes.Buffer)
+		message_bytes.WriteByte(1)
+		binary.Write(message_bytes, binary.LittleEndian, int32(i))
+		binary.Write(message_bytes, binary.LittleEndian, int32(1))
+		message_bytes.WriteByte(97)
+		con.Write(message_bytes.Bytes())
+		if err != nil {
+			fmt.Println(err)
+			t.FailNow()
+		}
 	}
 	fmt.Println("Connections Complete")
 	original_message := "This is a test message!"
@@ -52,30 +62,23 @@ func BenchmarkEcho(t *testing.B) {
 			fmt.Println(err)
 			t.FailNow()
 		}
-		var c_len int32
-		binary.Read(bytes.NewBuffer(buf[5:9]), binary.LittleEndian, &c_len)
-		string_return := string(buf[9 : 9+c_len])
-		if n != len(message_bytes)+9 || string_return != original_message {
-			fmt.Println("Message length or content did not match!")
+		if n == 0 {
 			t.FailNow()
 		}
-		//else {
-		//count += 1
-		//}
-		//if count%num_conn == 0 {
-		//	fmt.Println("Count: ", count)
-		//}
+		//var c_len int32
+		//binary.Read(bytes.NewBuffer(buf[5:9]), binary.LittleEndian, &c_len)
+		//fmt.Println("Mes")
 	}
 	//exit <- 1
 }
 
 func TestLogin(t *testing.T) {
-	//exit := make(chan int, 1)
-	//incoming_requests := make(chan Message, 200)
-	//outgoing_player := make(chan Message, 200)
-	//go RunServer(exit, incoming_requests, outgoing_player)
-	//go ManageRequests(exit, incoming_requests, outgoing_player)
-	//time.Sleep(1 * time.Second)
+	exit := make(chan int, 1)
+	incoming_requests := make(chan Message, 200)
+	outgoing_player := make(chan Message, 200)
+	go RunServer(exit, incoming_requests, outgoing_player)
+	go ManageRequests(exit, incoming_requests, outgoing_player)
+	time.Sleep(1 * time.Second)
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
 		fmt.Println(err)
@@ -86,7 +89,7 @@ func TestLogin(t *testing.T) {
 		fmt.Println(err)
 		t.FailNow()
 	}
-	fmt.Println("Connections Complete")
+	fmt.Println("Connection Complete")
 	message_bytes := new(bytes.Buffer)
 	message_bytes.WriteByte(1)
 	binary.Write(message_bytes, binary.LittleEndian, int32(0))
@@ -98,14 +101,13 @@ func TestLogin(t *testing.T) {
 		t.FailNow()
 	}
 	buf := make([]byte, 1024)
-	for i := 0; i < 2; i++ {
-		fmt.Println("STARTING TEST READ")
+	for i := 0; i < 10; i++ {
 		n, err := conn.Read(buf[0:])
 		if err != nil {
 			fmt.Println(err)
 			t.FailNow()
 		}
-		fmt.Println(buf[0:n])
+		fmt.Println("Message recieved in test client: ", buf[0:n])
 	}
 	conn.Write([]byte{255, 0, 0, 0, 0, 0, 0, 0, 0})
 	conn.Close()

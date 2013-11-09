@@ -12,7 +12,7 @@ func ManageRequests(exit chan int, incoming_requests chan Message, outgoing_play
 	gm := &GameManager{users: make(map[int32]*Client, 100)}
 	into_simulator := make(chan EntityUpdate, 512)
 	out_simulator := make(chan EntityUpdate, 512)
-	simulator := &SolarSimulator{output_update: out_simulator}
+	simulator := &SolarSimulator{output_update: out_simulator, Entities: map[int32]Entity{}, Characters: map[int32]Entity{}}
 	go simulator.RunSimulation(into_simulator)
 	update_time := int64(0)
 	update_count := 0
