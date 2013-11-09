@@ -59,6 +59,7 @@ func HandleLogin(msg *Message, gm *GameManager, sm *SolarManager, into_simulator
 	ship := &Ship{Hull: "A", EntityData: EntityData{Id: ship_id}}
 	sm.ships[ship_id] = ship
 	eu := &EntityUpdate{UpdateType: msg.frame.message_type, EntityObj: *ship}
+	into_simulator <- *eu
 	success := true
 	fmt.Println("Logged in: ", gm.users[msg.frame.from_user])
 	m := CreateLoginMessage(gm.users[msg.frame.from_user].user, success)

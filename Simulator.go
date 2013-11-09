@@ -19,7 +19,7 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 	for {
 		timeout := ss.last_update.Add(time.Millisecond * UPDATE_SLEEP).Sub(time.Now())
 		wait_for_timeout := true
-		for {
+		for wait_for_timeout {
 			select {
 			case update_msg := <-input_update:
 				if update_msg.UpdateType == 1 {
@@ -41,10 +41,31 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 		}
 
 		// Tick
+		eu := &EntityUpdate{UpdateType: byte(4)}
 		for _, entity := range ss.Entities {
 			if ship, ok := entity.(Ship); ok {
-				ship.Position[0] += ship.Velocity[0] / UPDATES_PER_SECOND
+				changed := false
+				if ship.Velocity[0] != 0.0 {
+					ship.Position[0] += ship.Velocity[0] / UPDATES_PER_SECOND
+					changed = true
+				}
+				if ship.Velocity[1] != 0.0 {
+					ship.Position[1] += ship.Velocity[1] / UPDATES_PER_SECOND
+					changed = true
+				}
+				if ship.RotationVelocity != 0.0 {
+					ship.Rotation += ship.RotationVelocity / UPDATES_PER_SECOND
+					if ship.Rotation > 1.0 {
+						ship.Rotation -= 1
+					}
+					changed = true
+				}
+				if changed {
+					eu.EntityObj = Entity(ship)
+					ss.output_update <- *eu
+				}
 			}
 		}
+		// Check for collisions?
 	}
 }
