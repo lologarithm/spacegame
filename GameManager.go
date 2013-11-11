@@ -7,7 +7,8 @@ import (
 	"time"
 )
 
-func ManageRequests(exit chan int, incoming_requests chan Message, outgoing_player chan Message) {
+// GameMessages come in. EntityUpdate objects goto physics. NetMessages go out to network.
+func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_player chan NetMessage) {
 	sm := &SolarManager{ships: make(map[int32]*Ship, 50), last_update: time.Now()}
 	gm := &GameManager{users: make(map[int32]*Client, 100)}
 	into_simulator := make(chan EntityUpdate, 512)
@@ -37,7 +38,7 @@ func ManageRequests(exit chan int, incoming_requests chan Message, outgoing_play
 		}
 		sm.last_update = time.Now()
 		base_message := sm.CreateShipUpdateMessage()
-		player_message := new(Message)
+		player_message := new(NetMessage)
 		for _, user := range gm.users {
 			*player_message = base_message
 			player_message.destination = user
@@ -52,7 +53,7 @@ func ManageRequests(exit chan int, incoming_requests chan Message, outgoing_play
 	}
 }
 
-func HandleLogin(msg *Message, gm *GameManager, sm *SolarManager, into_simulator chan EntityUpdate) Message {
+func HandleLogin(msg *GameMessage, gm *GameManager, sm *SolarManager, into_simulator chan EntityUpdate) NetMessage {
 	gm.users[msg.frame.from_user] = msg.destination
 	gm.users[msg.frame.from_user].user = &User{Id: msg.frame.from_user}
 	ship_id := int32(len(sm.ships))
@@ -67,17 +68,17 @@ func HandleLogin(msg *Message, gm *GameManager, sm *SolarManager, into_simulator
 	return *m
 }
 
-func HandleLogoff(msg *Message, gm *GameManager, sm *SolarManager) {
+func HandleLogoff(msg *GameMessage, gm *GameManager, sm *SolarManager) {
 	delete(gm.users, msg.frame.from_user)
 	// Ship removal?
 }
 
-func CreateLoginMessage(user *User, success bool) *Message {
+func CreateLoginMessage(user *User, success bool) *NetMessage {
 	mt := byte(2)
 	if !success {
 		mt = byte(3)
 	}
-	m := &Message{}
+	m := &NetMessage{}
 	m.frame = &MessageFrame{message_type: mt, frame_length: 9, content_length: 1}
 	buf := new(bytes.Buffer)
 	buf.Grow(10)
@@ -100,7 +101,7 @@ type SolarManager struct {
 	last_update time.Time
 }
 
-func (sm *SolarManager) CreateShipUpdateMessage() (m Message) {
+func (sm *SolarManager) CreateShipUpdateMessage() (m NetMessage) {
 	content_length := 20 * len(sm.ships)
 	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: int32(content_length)}
 	buf := new(bytes.Buffer)
