@@ -6,7 +6,7 @@ import "runtime"
 func main() {
 	runtime.GOMAXPROCS(1)
 	exit := make(chan int, 1)
-	incoming_requests := make(chan NetMessage, 200)
+	incoming_requests := make(chan GameMessage, 1024)
 	outgoing_player := make(chan NetMessage, 1024)
 	fmt.Println("Starting!")
 	go RunServer(exit, incoming_requests, outgoing_player)

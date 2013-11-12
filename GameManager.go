@@ -23,11 +23,14 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_
 		for wait_for_timeout {
 			select {
 			case msg := <-incoming_requests:
-				if msg.frame.message_type == 1 {
-					outgoing_player <- HandleLogin(&msg, gm, sm, into_simulator)
-				}
-				if msg.frame.message_type == 255 {
-					HandleLogoff(&msg, gm, sm)
+				switch msg.(type) {
+				case LoginMessage:
+					login_msg, _ := msg.(LoginMessage)
+					if login_msg.LoggingIn {
+						outgoing_player <- HandleLogin(&login_msg, gm, sm, into_simulator)
+					} else {
+						HandleLogoff(&login_msg, gm, sm)
+					}
 				}
 			case <-time.After(timeout):
 				wait_for_timeout = false
@@ -53,23 +56,23 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_
 	}
 }
 
-func HandleLogin(msg *GameMessage, gm *GameManager, sm *SolarManager, into_simulator chan EntityUpdate) NetMessage {
-	gm.users[msg.frame.from_user] = msg.destination
-	gm.users[msg.frame.from_user].user = &User{Id: msg.frame.from_user}
+func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simulator chan EntityUpdate) NetMessage {
+	gm.users[msg.FromUser] = msg.Client
+	gm.users[msg.FromUser].user = &User{Id: msg.FromUser}
 	ship_id := int32(len(sm.ships))
 	ship := &Ship{Hull: "A", EntityData: EntityData{Id: ship_id}}
 	sm.ships[ship_id] = ship
-	eu := &EntityUpdate{UpdateType: msg.frame.message_type, EntityObj: *ship}
+	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
 	success := true
-	fmt.Println("Logged in: ", gm.users[msg.frame.from_user])
-	m := CreateLoginMessage(gm.users[msg.frame.from_user].user, success)
-	m.destination = msg.destination
+	fmt.Println("Logged in: ", gm.users[msg.FromUser])
+	m := CreateLoginMessage(gm.users[msg.FromUser].user, success)
+	m.destination = msg.Client
 	return *m
 }
 
-func HandleLogoff(msg *GameMessage, gm *GameManager, sm *SolarManager) {
-	delete(gm.users, msg.frame.from_user)
+func HandleLogoff(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
+	delete(gm.users, msg.FromUser)
 	// Ship removal?
 }
 
@@ -116,5 +119,15 @@ func (sm *SolarManager) CreateShipUpdateMessage() (m NetMessage) {
 	return
 }
 
-type GameMessage struct {
+type GameMessage interface {
+}
+
+type GameMessageValues struct {
+	FromUser int32
+	Client   *Client
+}
+
+type LoginMessage struct {
+	GameMessageValues
+	LoggingIn bool
 }

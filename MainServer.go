@@ -17,7 +17,7 @@ type Server struct {
 	connections       map[string]*Client
 	disconnect_player chan Client
 	outgoing_player   chan NetMessage
-	incoming_requests chan NetMessage
+	incoming_requests chan GameMessage
 	input_buffer      []byte
 	encryption_key    *rsa.PrivateKey
 }
@@ -64,7 +64,7 @@ func checkError(err error) {
 	}
 }
 
-func RunServer(exit chan int, requests chan NetMessage, outgoing_player chan NetMessage) {
+func RunServer(exit chan int, requests chan GameMessage, outgoing_player chan NetMessage) {
 	udpAddr, err := net.ResolveUDPAddr("udp", port)
 	checkError(err)
 	fmt.Println("Now listening on port", port)
