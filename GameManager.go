@@ -10,7 +10,7 @@ import (
 // GameMessages come in. EntityUpdate objects goto physics. NetMessages go out to network.
 func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_player chan NetMessage) {
 	sm := &SolarManager{ships: make(map[int32]*Ship, 50), last_update: time.Now()}
-	gm := &GameManager{users: make(map[int32]*Client, 100)}
+	gm := &GameManager{Users: make(map[int32]*Client, 100)}
 	into_simulator := make(chan EntityUpdate, 512)
 	out_simulator := make(chan EntityUpdate, 512)
 	simulator := &SolarSimulator{output_update: out_simulator, Entities: map[int32]Entity{}, Characters: map[int32]Entity{}}
@@ -31,6 +31,8 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_
 					} else {
 						HandleLogoff(&login_msg, gm, sm)
 					}
+				case SetThrustMessage:
+					HandleThrust(&msg, gm, sm)
 				}
 			case <-time.After(timeout):
 				wait_for_timeout = false
@@ -42,7 +44,7 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_
 		sm.last_update = time.Now()
 		base_message := sm.CreateShipUpdateMessage()
 		player_message := new(NetMessage)
-		for _, user := range gm.users {
+		for _, user := range gm.Users {
 			*player_message = base_message
 			player_message.destination = user
 			outgoing_player <- *player_message
@@ -57,23 +59,29 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_
 }
 
 func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simulator chan EntityUpdate) NetMessage {
-	gm.users[msg.FromUser] = msg.Client
-	gm.users[msg.FromUser].user = &User{Id: msg.FromUser}
+	gm.Users[msg.FromUser] = msg.Client
+	gm.Users[msg.FromUser].User = &User{Id: msg.FromUser}
+	gm.Users[msg.FromUser].User.ActiveCharacter = &Character{EntityData: EntityData{Id: 0}}
 	ship_id := int32(len(sm.ships))
-	ship := &Ship{Hull: "A", EntityData: EntityData{Id: ship_id}}
+	ship := &Ship{Hull: "A", EntityData: EntityData{Id: ship_id}, RigidBody: RigidBody{Mass: 2000}}
 	sm.ships[ship_id] = ship
 	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
 	success := true
-	fmt.Println("Logged in: ", gm.users[msg.FromUser])
-	m := CreateLoginMessage(gm.users[msg.FromUser].user, success)
+	fmt.Println("Logged in: ", gm.Users[msg.FromUser])
+	m := CreateLoginMessage(gm.Users[msg.FromUser].User, success)
 	m.destination = msg.Client
 	return *m
 }
 
 func HandleLogoff(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
-	delete(gm.users, msg.FromUser)
+	delete(gm.Users, msg.FromUser)
 	// Ship removal?
+}
+
+func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
+	// TODO: Create ship designs that have angle of thruster
+
 }
 
 func CreateLoginMessage(user *User, success bool) *NetMessage {
@@ -95,7 +103,8 @@ func CreateLoginMessage(user *User, success bool) *NetMessage {
 
 type GameManager struct {
 	// Player data
-	users map[int32]*Client
+	Users      map[int32]*Client
+	Characters map[int32]*Character
 }
 
 type SolarManager struct {
@@ -130,4 +139,9 @@ type GameMessageValues struct {
 type LoginMessage struct {
 	GameMessageValues
 	LoggingIn bool
+}
+
+type SetThrustMessage struct {
+	GameMessageValues
+	ThrustPercent []int32
 }

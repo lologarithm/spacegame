@@ -1,10 +1,14 @@
 package main
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 const (
 	UPDATES_PER_SECOND = 50.0
 	UPDATE_SLEEP       = 1000 / UPDATES_PER_SECOND
+	FULL_CIRCLE        = math.Pi * 2
 )
 
 type SolarSimulator struct {
@@ -29,8 +33,8 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 				} else if update_msg.UpdateType == 3 {
 					if update_ent, ok := update_msg.EntityObj.(Ship); ok {
 						if ship, ok := ss.Entities[update_ent.Id].(Ship); ok {
-							ship.Velocity = update_ent.Velocity
-							ship.Rotation = update_ent.Rotation
+							ship.Force = update_ent.Force
+							ship.Torque = update_ent.Torque
 						}
 					}
 				}
@@ -53,10 +57,10 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 					ship.Position[1] += ship.Velocity[1] / UPDATES_PER_SECOND
 					changed = true
 				}
-				if ship.RotationVelocity != 0.0 {
-					ship.Rotation += ship.RotationVelocity / UPDATES_PER_SECOND
-					if ship.Rotation > 1.0 {
-						ship.Rotation -= 1
+				if ship.AngularVelocity != 0.0 {
+					ship.Angle += ship.AngularVelocity / UPDATES_PER_SECOND
+					for ship.Angle > FULL_CIRCLE {
+						ship.Angle -= FULL_CIRCLE
 					}
 					changed = true
 				}
@@ -68,4 +72,26 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 		}
 		// Check for collisions?
 	}
+}
+
+func CrossProduct(a *Vect2, b *Vect2) float32 {
+	return a.X()*b.Y() - a.Y()*b.X()
+}
+
+func CrossScalar(v *Vect2, s float32) *Vect2 {
+	return &Vect2{v.Y() * s, -s * v.X()}
+}
+
+func CrossScalarFirst(s float32, v *Vect2) *Vect2 {
+	return &Vect2{v.Y() * -s, s * v.X()}
+}
+
+type Vect2 []float32
+
+func (v *Vect2) X() float32 {
+	return []float32(*v)[0]
+}
+
+func (v *Vect2) Y() float32 {
+	return []float32(*v)[1]
 }

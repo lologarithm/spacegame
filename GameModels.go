@@ -13,17 +13,28 @@ type User struct {
 }
 
 type Character struct {
-	EntityData // anonomous field gives character all entity fields
-	Health     int32
+	EntityData  // anonomous field gives character all entity fields
+	Health      int32
+	CurrentShip *Ship
 }
 
 type EntityData struct {
-	Id               int32      // Uniquely id this entity in space
-	Position         [2]float32 // coords x,y of entity
-	Velocity         [2]float32 // speed in vector format
-	Rotation         float32    // Current heading
-	RotationVelocity float32    // speed of rotation around the Z axis (negative is counter clockwise)
-	Mass             float32    // mass effects physics!
+	Id int32 // Uniquely id this entity in space
+} // TODO: Mass a function to calculate total mass?
+
+type RigidBody struct {
+	Position Vect2   // coords x,y of entity  (meters)
+	Velocity Vect2   // speed in vector format (m/s)
+	Force    float32 // Force
+
+	Angle           float32 // Current heading (radians)
+	AngularVelocity float32 // speed of rotation around the Z axis (radians/sec)
+	Torque          float32 // Torque
+
+	Mass       float32 // mass of the ship, (kg)
+	InvMass    float32
+	Inertia    float32
+	InvInertia float32
 }
 
 type EntityUpdate struct {
@@ -36,9 +47,12 @@ type CelestialBody struct {
 	BodyType string // 'star' 'planet' 'asteroid'
 }
 
+// Object to describe a ship. TODO: define all customizable bits, subsystems, power, etc
 type Ship struct {
 	EntityData
-	Hull string // something something darkside
+	RigidBody
+	Hull          string    // String to identify ship type
+	ThrusterPower []float32 // List of thrusters and % power
 }
 
 func (ship *Ship) UpdateBytes() []byte {
@@ -48,8 +62,8 @@ func (ship *Ship) UpdateBytes() []byte {
 	binary.Write(buf, binary.LittleEndian, ship.Position[1])
 	binary.Write(buf, binary.LittleEndian, ship.Velocity[0])
 	binary.Write(buf, binary.LittleEndian, ship.Velocity[1])
-	binary.Write(buf, binary.LittleEndian, ship.Rotation)
-	binary.Write(buf, binary.LittleEndian, ship.RotationVelocity)
+	binary.Write(buf, binary.LittleEndian, ship.Angle)
+	binary.Write(buf, binary.LittleEndian, ship.AngularVelocity)
 	return buf.Bytes()
 }
 
