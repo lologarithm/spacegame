@@ -8,7 +8,7 @@ import (
 )
 
 // GameMessages come in. EntityUpdate objects goto physics. NetMessages go out to network.
-func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_player chan NetMessage) {
+func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingNetwork chan NetMessage) {
 	sm := &SolarManager{ships: make(map[int32]*Ship, 50), last_update: time.Now()}
 	gm := &GameManager{Users: make(map[int32]*Client, 100)}
 	into_simulator := make(chan EntityUpdate, 512)
@@ -18,21 +18,24 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_
 	update_time := int64(0)
 	update_count := 0
 	for {
-		timeout := sm.last_update.Add(time.Millisecond * 20).Sub(time.Now())
+		timeout := sm.last_update.Add(time.Millisecond * 50).Sub(time.Now())
 		wait_for_timeout := true
 		for wait_for_timeout {
 			select {
 			case msg := <-incoming_requests:
 				switch msg.(type) {
-				case LoginMessage:
-					login_msg, _ := msg.(LoginMessage)
+				case *LoginMessage:
+					fmt.Println("GameManager got login.")
+					login_msg, _ := msg.(*LoginMessage)
 					if login_msg.LoggingIn {
-						outgoing_player <- HandleLogin(&login_msg, gm, sm, into_simulator)
+						outgoingNetwork <- HandleLogin(login_msg, gm, sm, into_simulator)
 					} else {
-						HandleLogoff(&login_msg, gm, sm)
+						HandleLogoff(login_msg, gm, sm)
 					}
-				case SetThrustMessage:
+				case *SetThrustMessage:
 					HandleThrust(&msg, gm, sm)
+				default:
+					fmt.Println("UNKNOWN MESSAGE TYPE")
 				}
 			case <-time.After(timeout):
 				wait_for_timeout = false
@@ -47,7 +50,7 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoing_
 		for _, user := range gm.Users {
 			*player_message = base_message
 			player_message.destination = user
-			outgoing_player <- *player_message
+			outgoingNetwork <- *player_message
 		}
 		update_time += time.Now().Sub(sm.last_update).Nanoseconds()
 		update_count += 1
@@ -94,9 +97,9 @@ func CreateLoginMessage(user *User, success bool) *NetMessage {
 	buf := new(bytes.Buffer)
 	buf.Grow(10)
 	buf.WriteByte(mt)
-	binary.Write(buf, binary.LittleEndian, int32(user.Id))
-	binary.Write(buf, binary.LittleEndian, int32(1))
-	buf.WriteByte(1)
+	binary.Write(buf, binary.LittleEndian, int32(user.Id)) // Write 4byte user id
+	binary.Write(buf, binary.LittleEndian, int32(1))       // Write 4 byte content len
+	buf.WriteByte(1)                                       // Content, 1=="success"
 	m.raw_bytes = buf.Bytes()
 	return m
 }

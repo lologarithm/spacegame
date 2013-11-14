@@ -74,8 +74,8 @@ func BenchmarkEcho(t *testing.B) {
 
 func TestLogin(t *testing.T) {
 	exit := make(chan int, 1)
-	incoming_requests := make(chan Message, 200)
-	outgoing_player := make(chan Message, 200)
+	incoming_requests := make(chan GameMessage, 200)
+	outgoing_player := make(chan NetMessage, 200)
 	go RunServer(exit, incoming_requests, outgoing_player)
 	go ManageRequests(exit, incoming_requests, outgoing_player)
 	time.Sleep(1 * time.Second)

@@ -23,9 +23,9 @@ type EntityData struct {
 } // TODO: Mass a function to calculate total mass?
 
 type RigidBody struct {
-	Position Vect2   // coords x,y of entity  (meters)
-	Velocity Vect2   // speed in vector format (m/s)
-	Force    float32 // Force
+	Position Vect2 // coords x,y of entity  (meters)
+	Velocity Vect2 // speed in vector format (m/s)
+	Force    Vect2 // Force
 
 	Angle           float32 // Current heading (radians)
 	AngularVelocity float32 // speed of rotation around the Z axis (radians/sec)
@@ -47,7 +47,8 @@ type CelestialBody struct {
 	BodyType string // 'star' 'planet' 'asteroid'
 }
 
-// Object to describe a ship. TODO: define all customizable bits, subsystems, power, etc
+// Object to describe a ship.
+// TODO: define all customizable bits, subsystems, power, etc
 type Ship struct {
 	EntityData
 	RigidBody
