@@ -22,21 +22,6 @@ type EntityData struct {
 	Id int32 // Uniquely id this entity in space
 } // TODO: Mass a function to calculate total mass?
 
-type RigidBody struct {
-	Position Vect2 // coords x,y of entity  (meters)
-	Velocity Vect2 // speed in vector format (m/s)
-	Force    Vect2 // Force
-
-	Angle           float32 // Current heading (radians)
-	AngularVelocity float32 // speed of rotation around the Z axis (radians/sec)
-	Torque          float32 // Torque
-
-	Mass       float32 // mass of the ship, (kg)
-	InvMass    float32
-	Inertia    float32
-	InvInertia float32
-}
-
 type EntityUpdate struct {
 	UpdateType byte // 2 == login, 3 == logoff, 4 == physics update
 	EntityObj  Entity

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -10,4 +11,6 @@ func TestVect(t *testing.T) {
 	if v_mult.X() != 4 && v_mult.Y() != 4 {
 		t.FailNow()
 	}
+
+	fmt.Println("Vector tests pass.")
 }

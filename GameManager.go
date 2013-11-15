@@ -66,7 +66,7 @@ func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simu
 	gm.Users[msg.FromUser].User = &User{Id: msg.FromUser}
 	gm.Users[msg.FromUser].User.ActiveCharacter = &Character{EntityData: EntityData{Id: 0}}
 	ship_id := int32(len(sm.ships))
-	ship := &Ship{Hull: "A", EntityData: EntityData{Id: ship_id}, RigidBody: RigidBody{Mass: 2000}}
+	ship := CreateShip(ship_id, "A")
 	sm.ships[ship_id] = ship
 	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
@@ -85,6 +85,12 @@ func HandleLogoff(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
 func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
 	// TODO: Create ship designs that have angle of thruster
 
+}
+
+// TODO: Check if ID already exists (logged off etc) and return that instead of creating.
+func CreateShip(ship_id int32, hull string) *Ship {
+	return &Ship{Hull: "A", EntityData: EntityData{Id: ship_id},
+		RigidBody: RigidBody{Mass: 2000, Position: Vect2{0, 0}, Velocity: Vect2{0, 0}, Force: Vect2{0, 0}}}
 }
 
 func CreateLoginMessage(user *User, success bool) *NetMessage {
