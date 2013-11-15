@@ -25,7 +25,6 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 			case msg := <-incoming_requests:
 				switch msg.(type) {
 				case *LoginMessage:
-					fmt.Println("GameManager got login.")
 					login_msg, _ := msg.(*LoginMessage)
 					if login_msg.LoggingIn {
 						outgoingNetwork <- HandleLogin(login_msg, gm, sm, into_simulator)
@@ -71,7 +70,7 @@ func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simu
 	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
 	success := true
-	fmt.Println("Logged in: ", gm.Users[msg.FromUser])
+	//fmt.Println("Logged in: ", gm.Users[msg.FromUser])
 	m := CreateLoginMessage(gm.Users[msg.FromUser].User, success)
 	m.destination = msg.Client
 	return *m
