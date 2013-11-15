@@ -49,6 +49,10 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 		for _, entity := range ss.Entities {
 			if ship, ok := entity.(Ship); ok {
 				changed := false
+
+				ship.Velocity.Add(MultVect2(&ship.Force, ship.InvMass/UPDATES_PER_SECOND))
+				ship.AngularVelocity += (ship.Torque * ship.InvInertia) / UPDATES_PER_SECOND
+
 				if ship.Velocity[0] != 0.0 {
 					ship.Position[0] += ship.Velocity[0] / UPDATES_PER_SECOND
 					changed = true
@@ -72,26 +76,4 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 		}
 		// Check for collisions?
 	}
-}
-
-func CrossProduct(a *Vect2, b *Vect2) float32 {
-	return a.X()*b.Y() - a.Y()*b.X()
-}
-
-func CrossScalar(v *Vect2, s float32) *Vect2 {
-	return &Vect2{v.Y() * s, -s * v.X()}
-}
-
-func CrossScalarFirst(s float32, v *Vect2) *Vect2 {
-	return &Vect2{v.Y() * -s, s * v.X()}
-}
-
-type Vect2 []float32
-
-func (v *Vect2) X() float32 {
-	return []float32(*v)[0]
-}
-
-func (v *Vect2) Y() float32 {
-	return []float32(*v)[1]
 }
