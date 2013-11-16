@@ -70,7 +70,7 @@ func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simu
 	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
 	success := true
-	fmt.Println("Logged in: ", gm.Users[msg.FromUser])
+	//fmt.Println("Logged in: ", gm.Users[msg.FromUser])
 	m := CreateLoginMessage(gm.Users[msg.FromUser].User, success)
 	m.destination = msg.Client
 	return *m
@@ -88,7 +88,7 @@ func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
 
 // TODO: Check if ID already exists (logged off etc) and return that instead of creating.
 func CreateShip(ship_id int32, hull string) *Ship {
-	return &Ship{Hull: "A", EntityData: EntityData{Id: ship_id},
+	return &Ship{Hull: &Hull{Name: "A"}, EntityData: EntityData{Id: ship_id},
 		RigidBody: RigidBody{Mass: 2000, Position: Vect2{0, 0}, Velocity: Vect2{0, 0}, Force: Vect2{0, 0}}}
 }
 

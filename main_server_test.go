@@ -73,12 +73,12 @@ func BenchmarkEcho(t *testing.B) {
 }
 
 func TestLogin(t *testing.T) {
-//	exit := make(chan int, 1)
-//	incoming_requests := make(chan GameMessage, 200)
-//	outgoing_player := make(chan NetMessage, 200)
-//	go RunServer(exit, incoming_requests, outgoing_player)
-//	go ManageRequests(exit, incoming_requests, outgoing_player)
-//	time.Sleep(1 * time.Second)
+	exit := make(chan int, 1)
+	incoming_requests := make(chan GameMessage, 200)
+	outgoing_player := make(chan NetMessage, 200)
+	go RunServer(exit, incoming_requests, outgoing_player)
+	go ManageRequests(exit, incoming_requests, outgoing_player)
+	time.Sleep(1 * time.Second)
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
 		fmt.Println(err)
@@ -89,7 +89,7 @@ func TestLogin(t *testing.T) {
 		fmt.Println(err)
 		t.FailNow()
 	}
-	fmt.Println("Connection Complete")
+	//fmt.Println("Connection Complete")
 	message_bytes := new(bytes.Buffer)
 	message_bytes.WriteByte(1)
 	binary.Write(message_bytes, binary.LittleEndian, int32(0))
@@ -102,12 +102,12 @@ func TestLogin(t *testing.T) {
 	}
 	buf := make([]byte, 1024)
 	for i := 0; i < 10; i++ {
-		n, err := conn.Read(buf[0:])
+		_, err := conn.Read(buf[0:])
 		if err != nil {
 			fmt.Println(err)
 			t.FailNow()
 		}
-		fmt.Println("Message recieved in test client: ", buf[0:n])
+		//fmt.Println("Message recieved in test client: ", buf[0:n])
 	}
 	conn.Write([]byte{255, 0, 0, 0, 0, 0, 0, 0, 0})
 	conn.Close()

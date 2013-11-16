@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"time"
 )
@@ -43,37 +44,44 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 				break
 			}
 		}
-
-		// Tick
-		eu := &EntityUpdate{UpdateType: byte(4)}
-		for _, entity := range ss.Entities {
-			if ship, ok := entity.(Ship); ok {
-				changed := false
-
-				ship.Velocity.Add(MultVect2(&ship.Force, ship.InvMass/UPDATES_PER_SECOND))
-				ship.AngularVelocity += (ship.Torque * ship.InvInertia) / UPDATES_PER_SECOND
-
-				if ship.Velocity[0] != 0.0 {
-					ship.Position[0] += ship.Velocity[0] / UPDATES_PER_SECOND
-					changed = true
-				}
-				if ship.Velocity[1] != 0.0 {
-					ship.Position[1] += ship.Velocity[1] / UPDATES_PER_SECOND
-					changed = true
-				}
-				if ship.AngularVelocity != 0.0 {
-					ship.Angle += ship.AngularVelocity / UPDATES_PER_SECOND
-					for ship.Angle > FULL_CIRCLE {
-						ship.Angle -= FULL_CIRCLE
-					}
-					changed = true
-				}
-				if changed {
-					eu.EntityObj = Entity(ship)
-					ss.output_update <- *eu
-				}
-			}
-		}
-		// Check for collisions?
+		ss.Tick()
 	}
+}
+
+func (ss *SolarSimulator) Tick() {
+	eu := &EntityUpdate{UpdateType: byte(4)}
+	for _, entity := range ss.Entities {
+		if ship, ok := entity.(Ship); ok {
+			changed := false
+
+			ship.Velocity.Add(MultVect2(&ship.Force, ship.InvMass/UPDATES_PER_SECOND))
+			ship.AngularVelocity += (ship.Torque * ship.InvInertia) / UPDATES_PER_SECOND
+
+			if ship.Velocity[0] != 0.0 {
+				ship.Position[0] += ship.Velocity[0] / UPDATES_PER_SECOND
+				changed = true
+			}
+			if ship.Velocity[1] != 0.0 {
+				ship.Position[1] += ship.Velocity[1] / UPDATES_PER_SECOND
+				changed = true
+			}
+			if ship.AngularVelocity != 0.0 {
+				ship.Angle += ship.AngularVelocity / UPDATES_PER_SECOND
+				for ship.Angle > FULL_CIRCLE {
+					ship.Angle -= FULL_CIRCLE
+				}
+				for ship.Angle < -FULL_CIRCLE {
+					ship.Angle += FULL_CIRCLE
+				}
+				changed = true
+			}
+			if changed {
+				eu.EntityObj = Entity(ship)
+				ss.output_update <- *eu
+			}
+		} else {
+			fmt.Println("That was not a ship")
+		}
+	}
+	// Check for collisions?
 }

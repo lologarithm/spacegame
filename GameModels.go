@@ -37,8 +37,20 @@ type CelestialBody struct {
 type Ship struct {
 	EntityData
 	RigidBody
-	Hull          string    // String to identify ship type
-	ThrusterPower []float32 // List of thrusters and % power
+	Hull *Hull // Ship hull information
+}
+
+type Hull struct {
+	Name      string     // Ship hull name
+	Thrusters []Thruster // List of thrusters and current thrust state
+	COM       Vect2      // Center of Mass
+}
+
+type Thruster struct {
+	Max       float32 // Max thrust (N)
+	Current   float32 // Current thrust (N)
+	R         Vect2   // Vector from COM to Thruster
+	Direction Vect2   // Vector the thrust is applied.
 }
 
 func (ship *Ship) UpdateBytes() []byte {
@@ -48,8 +60,11 @@ func (ship *Ship) UpdateBytes() []byte {
 	binary.Write(buf, binary.LittleEndian, ship.Position[1])
 	binary.Write(buf, binary.LittleEndian, ship.Velocity[0])
 	binary.Write(buf, binary.LittleEndian, ship.Velocity[1])
+	binary.Write(buf, binary.LittleEndian, ship.Velocity[0])
+	binary.Write(buf, binary.LittleEndian, ship.Velocity[1])
 	binary.Write(buf, binary.LittleEndian, ship.Angle)
 	binary.Write(buf, binary.LittleEndian, ship.AngularVelocity)
+	binary.Write(buf, binary.LittleEndian, ship.Torque)
 	return buf.Bytes()
 }
 
