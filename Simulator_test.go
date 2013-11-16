@@ -23,11 +23,12 @@ func TestTick(t *testing.T) {
 				fmt.Printf("Incorrect X position after physics update. Expected: %f Actual: %f\n", i/50.0, ship.Position.X())
 				t.FailNow()
 			}
-			fmt.Printf("(%d)Position: (%f, %f)\n", i, ship.Position.X(), ship.Position.Y())
+			//fmt.Printf("(%d)Position: (%f, %f)\n", i, ship.Position.X(), ship.Position.Y())
 		} else {
 			fmt.Println("Error casting: ", ok)
 		}
 	}
+	fmt.Println("Tick test passed.")
 }
 
 func FloatCompare(a float32, b float32) bool {

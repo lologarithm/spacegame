@@ -55,13 +55,13 @@ type Thruster struct {
 
 func (ship *Ship) UpdateBytes() []byte {
 	buf := new(bytes.Buffer)
-	buf.Grow(24)
+	buf.Grow(36)
 	binary.Write(buf, binary.LittleEndian, ship.Position[0])
 	binary.Write(buf, binary.LittleEndian, ship.Position[1])
 	binary.Write(buf, binary.LittleEndian, ship.Velocity[0])
 	binary.Write(buf, binary.LittleEndian, ship.Velocity[1])
-	binary.Write(buf, binary.LittleEndian, ship.Velocity[0])
-	binary.Write(buf, binary.LittleEndian, ship.Velocity[1])
+	binary.Write(buf, binary.LittleEndian, ship.Force[0])
+	binary.Write(buf, binary.LittleEndian, ship.Force[1])
 	binary.Write(buf, binary.LittleEndian, ship.Angle)
 	binary.Write(buf, binary.LittleEndian, ship.AngularVelocity)
 	binary.Write(buf, binary.LittleEndian, ship.Torque)
