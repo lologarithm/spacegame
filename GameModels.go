@@ -69,6 +69,10 @@ func (ship *Ship) UpdateBytes() []byte {
 	return buf.Bytes()
 }
 
+type (ship *Ship) CreateTestShip() {
+	
+}
+
 type Entity interface {
 	// Entity functions to here.
 }

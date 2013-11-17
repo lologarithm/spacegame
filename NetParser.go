@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"net"
 )
 
@@ -19,20 +20,21 @@ func (m *NetMessage) Content() []byte {
 type MessageFrame struct {
 	message_type   byte // 0: echo, 1: login_request 2: login success 3: login failure/logoff 4: physics update
 	from_user      int32
-	frame_length   int32
-	content_length int32
+	frame_length   int16
+	content_length int16
 }
 
 func ParseFrame(raw_bytes []byte) *MessageFrame {
-	if len(raw_bytes) >= 9 {
+	if len(raw_bytes) >= 7 {
 		mf := new(MessageFrame)
 		mf.message_type = raw_bytes[0]
 		var v int32
 		binary.Read(bytes.NewBuffer(raw_bytes[1:5]), binary.LittleEndian, &v)
 		mf.from_user = v
-		binary.Read(bytes.NewBuffer(raw_bytes[5:9]), binary.LittleEndian, &v)
-		mf.content_length = v
-		mf.frame_length = 9
+		var cl int16
+		binary.Read(bytes.NewBuffer(raw_bytes[5:9]), binary.LittleEndian, &cl)
+		mf.content_length = cl
+		mf.frame_length = 7
 		return mf
 	}
 
@@ -57,6 +59,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 		} else {
 			client.buffer = append(client.buffer, dem_bytes...)
 			msg_frame := ParseFrame(client.buffer)
+			fmt.Printf("Current Buffer: %v\n", client.buffer)
 			if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) >= len(client.buffer) {
 				if msg_frame.message_type == 0 {
 					netmessage := &NetMessage{
@@ -75,6 +78,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 						}
 					}
 				}
+				client.buffer = client.buffer[msg_frame.frame_length+msg_frame.content_length:]
 			}
 		}
 	}
@@ -83,6 +87,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 // Accepts input of raw bytes from a NetMessage. Parses and returns a
 // GameMessage that the GameManager can use.
 func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
+	fmt.Printf("Message: %v  Buffer: %v\n", msg_frame, client.buffer)
 	content := client.buffer[msg_frame.frame_length : msg_frame.frame_length+msg_frame.content_length]
 	gmv := &GameMessageValues{FromUser: msg_frame.from_user, Client: client}
 	switch msg_frame.message_type {
@@ -93,6 +98,15 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 			return msg
 		}
 	case 5:
+		//5 USER CLEN [T1 PERC, T2 PERC]
+		num_percents := len(content) / 4
+		thrust_percents := make([]int16, num_percents)
+		for i := 0; i < num_percents; i++ {
+			c_pos := i * 4
+			binary.Read(bytes.NewBuffer(content[c_pos:c_pos+4]), binary.LittleEndian, thrust_percents[i])
+		}
+		msg := &SetThrustMessage{GameMessageValues: *gmv, ThrustPercent: thrust_percents}
+		return msg
 	case 255:
 		return &LoginMessage{GameMessageValues: *gmv, LoggingIn: false}
 	}

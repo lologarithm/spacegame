@@ -32,7 +32,7 @@ func BenchmarkEcho(t *testing.B) {
 		message_bytes := new(bytes.Buffer)
 		message_bytes.WriteByte(1)
 		binary.Write(message_bytes, binary.LittleEndian, int32(i))
-		binary.Write(message_bytes, binary.LittleEndian, int32(1))
+		binary.Write(message_bytes, binary.LittleEndian, int16(1))
 		message_bytes.WriteByte(97)
 		con.Write(message_bytes.Bytes())
 		if err != nil {
@@ -73,6 +73,7 @@ func BenchmarkEcho(t *testing.B) {
 }
 
 func TestLogin(t *testing.T) {
+	fmt.Println("Starting Login Test")
 	exit := make(chan int, 1)
 	incoming_requests := make(chan GameMessage, 200)
 	outgoing_player := make(chan NetMessage, 200)
@@ -93,7 +94,7 @@ func TestLogin(t *testing.T) {
 	message_bytes := new(bytes.Buffer)
 	message_bytes.WriteByte(1)
 	binary.Write(message_bytes, binary.LittleEndian, int32(0))
-	binary.Write(message_bytes, binary.LittleEndian, int32(1))
+	binary.Write(message_bytes, binary.LittleEndian, int16(1))
 	message_bytes.WriteByte(97)
 	conn.Write(message_bytes.Bytes())
 	if err != nil {
@@ -101,6 +102,61 @@ func TestLogin(t *testing.T) {
 		t.FailNow()
 	}
 	buf := make([]byte, 1024)
+	for i := 0; i < 10; i++ {
+		_, err := conn.Read(buf[0:])
+		if err != nil {
+			fmt.Println(err)
+			t.FailNow()
+		}
+		//fmt.Println("Message recieved in test client: ", buf[0:n])
+	}
+	conn.Write([]byte{255, 0, 0, 0, 0, 0, 0, 0, 0})
+	conn.Close()
+}
+
+func TestSetThrust(t *testing.T) {
+	//exit := make(chan int, 1)
+	//incoming_requests := make(chan GameMessage, 200)
+	//outgoing_player := make(chan NetMessage, 200)
+	//go RunServer(exit, incoming_requests, outgoing_player)
+	//go ManageRequests(exit, incoming_requests, outgoing_player)
+	//time.Sleep(1 * time.Second)
+	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	conn, err := net.DialUDP("udp", nil, ra)
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	buf := make([]byte, 1024)
+	fmt.Println("Logging in ")
+	message_bytes := new(bytes.Buffer)
+	message_bytes.WriteByte(1)
+	binary.Write(message_bytes, binary.LittleEndian, int32(1))
+	binary.Write(message_bytes, binary.LittleEndian, int16(1))
+	message_bytes.WriteByte(97)
+	conn.Write(message_bytes.Bytes())
+	_, err = conn.Read(buf[0:])
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	fmt.Println("Setting speed!")
+	message_bytes = new(bytes.Buffer)
+	message_bytes.WriteByte(5)
+	binary.Write(message_bytes, binary.LittleEndian, int32(1))
+	binary.Write(message_bytes, binary.LittleEndian, int16(2))
+	binary.Write(message_bytes, binary.LittleEndian, int16(50))
+	conn.Write(message_bytes.Bytes())
+
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+
 	for i := 0; i < 10; i++ {
 		_, err := conn.Read(buf[0:])
 		if err != nil {

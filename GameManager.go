@@ -83,7 +83,7 @@ func HandleLogoff(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
 
 func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
 	// TODO: Create ship designs that have angle of thruster
-
+	fmt.Println("SETTING SOME THRUSTER CRAP")
 }
 
 // TODO: Check if ID already exists (logged off etc) and return that instead of creating.
@@ -123,7 +123,7 @@ type SolarManager struct {
 
 func (sm *SolarManager) CreateShipUpdateMessage() (m NetMessage) {
 	content_length := 20 * len(sm.ships)
-	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: int32(content_length)}
+	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: int16(content_length)}
 	buf := new(bytes.Buffer)
 	buf.Grow(9 + content_length)
 	buf.WriteByte(4)
@@ -151,5 +151,5 @@ type LoginMessage struct {
 
 type SetThrustMessage struct {
 	GameMessageValues
-	ThrustPercent []int32
+	ThrustPercent []int16
 }
