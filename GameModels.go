@@ -47,10 +47,11 @@ type Hull struct {
 }
 
 type Thruster struct {
-	Max       float32 // Max thrust (N)
-	Current   float32 // Current thrust (N)
-	R         Vect2   // Vector from COM to Thruster
-	Direction Vect2   // Vector the thrust is applied.
+	Max            float32 // Max thrust (N)
+	Current        float32 // Current thrust (N)
+	AngularPercent float32
+	LinearPercent  float32
+	LinearVector   Vect2
 }
 
 func (ship *Ship) UpdateBytes() []byte {
