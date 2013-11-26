@@ -34,7 +34,7 @@ func (s *Server) handleMessage() {
 		s.DisconnectConn(addr_str)
 	}
 	if _, ok := s.connections[addr_str]; !ok {
-		fmt.Println("New Connection")
+		fmt.Println("New Connection: %v", addr_str)
 		s.connections[addr_str] = &Client{client_address: addr, incoming_bytes: make(chan []byte, 100)}
 		go s.connections[addr_str].ProcessBytes(s.incoming_requests, s.outgoing_player, s.disconnect_player)
 	}

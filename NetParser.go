@@ -76,6 +76,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 							disconnect_player <- *client
 							break
 						}
+						fmt.Println("Disconnected Player: %v", client.client_address)
 					}
 				}
 				client.buffer = client.buffer[msg_frame.frame_length+msg_frame.content_length:]
