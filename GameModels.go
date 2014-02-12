@@ -20,11 +20,12 @@ type Character struct {
 
 type EntityData struct {
 	Id int32 // Uniquely id this entity in space
-} // TODO: Mass a function to calculate total mass?
+}
 
+// Update message linked to an Entity.
 type EntityUpdate struct {
-	UpdateType byte // 2 == login, 3 == logoff, 4 == physics update
-	EntityObj  Entity
+	UpdateType byte   // 2 == login, 3 == logoff, 4 == physics update
+	EntityObj  Entity // Passed by value through channels
 }
 
 type CelestialBody struct {
@@ -38,7 +39,7 @@ type Ship struct {
 	EntityData
 	RigidBody
 	Hull *Hull // Ship hull information
-}
+} // TODO: Create "ShipMass" function to override RigidBody Mass.
 
 type Hull struct {
 	Name      string     // Ship hull name
@@ -49,9 +50,9 @@ type Hull struct {
 type Thruster struct {
 	Max            float32 // Max thrust (N)
 	Current        float32 // Current thrust (N)
-	AngularPercent float32
-	LinearPercent  float32
-	LinearVector   Vect2
+	AngularPercent float32 // Percent of thrust that applies to torque. Can be negative
+	LinearPercent  float32 // Percent of thrust that applies to force
+	LinearVector   Vect2   // Unit Vector to apply thrust in.
 }
 
 func (ship *Ship) UpdateBytes() []byte {
@@ -69,8 +70,14 @@ func (ship *Ship) UpdateBytes() []byte {
 	return buf.Bytes()
 }
 
-type (ship *Ship) CreateTestShip() {
-	
+func (ship *Ship) CreateTestShip() {
+	ship.Id = 1
+	thrusters := []Thruster{
+		Thruster{Max: 1000.0, AngularPercent: 0.0, LinearPercent: 1.0, LinearVector: Vect2{0, 1}},
+		Thruster{Max: 500.0, AngularPercent: 1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}},
+		Thruster{Max: 500.0, AngularPercent: -1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}}}
+	ship.Hull = &Hull{Name: "TestShip", Thrusters: thrusters}
+
 }
 
 type Entity interface {

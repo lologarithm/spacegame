@@ -34,7 +34,7 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 				case *SetThrustMessage:
 					HandleThrust(&msg, gm, sm)
 				default:
-					fmt.Println("UNKNOWN MESSAGE TYPE")
+					fmt.Println("GameManager.go:ManageRequests(): UNKNOWN MESSAGE TYPE")
 				}
 			case <-time.After(timeout):
 				wait_for_timeout = false
@@ -70,7 +70,6 @@ func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simu
 	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
 	success := true
-	//fmt.Println("Logged in: ", gm.Users[msg.FromUser])
 	m := CreateLoginMessage(gm.Users[msg.FromUser].User, success)
 	m.destination = msg.Client
 	return *m
@@ -134,22 +133,4 @@ func (sm *SolarManager) CreateShipUpdateMessage() (m NetMessage) {
 	}
 	m.raw_bytes = buf.Bytes()
 	return
-}
-
-type GameMessage interface {
-}
-
-type GameMessageValues struct {
-	FromUser int32
-	Client   *Client
-}
-
-type LoginMessage struct {
-	GameMessageValues
-	LoggingIn bool
-}
-
-type SetThrustMessage struct {
-	GameMessageValues
-	ThrustPercent []int16
 }

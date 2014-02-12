@@ -35,11 +35,11 @@ func (v *Vect2) Y() float32 {
 type RigidBody struct {
 	Position Vect2 // coords x,y of entity  (meters)
 	Velocity Vect2 // speed in vector format (m/s)
-	Force    Vect2 // Force
+	Force    Vect2 // Force to apply each tick.
 
 	Angle           float32 // Current heading (radians)
 	AngularVelocity float32 // speed of rotation around the Z axis (radians/sec)
-	Torque          float32 // Torque
+	Torque          float32 // Torque to apply each tick
 
 	Mass       float32 // mass of the ship, (kg)
 	InvMass    float32 // Inverted mass for physics calcs
