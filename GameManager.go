@@ -92,15 +92,15 @@ func CreateShip(ship_id int32, hull string) *Ship {
 }
 
 func CreateLoginMessage(user *User, success bool) *NetMessage {
-	mt := byte(2)
+	mt := LOGINSUCCESS
 	if !success {
-		mt = byte(3)
+		mt = LOGINFAIL
 	}
 	m := &NetMessage{}
 	m.frame = &MessageFrame{message_type: mt, frame_length: 9, content_length: 1}
 	buf := new(bytes.Buffer)
 	buf.Grow(10)
-	buf.WriteByte(mt)
+	buf.WriteByte(byte(mt))
 	binary.Write(buf, binary.LittleEndian, int32(user.Id)) // Write 4byte user id
 	binary.Write(buf, binary.LittleEndian, int32(1))       // Write 4 byte content len
 	buf.WriteByte(1)                                       // Content, 1=="success"
