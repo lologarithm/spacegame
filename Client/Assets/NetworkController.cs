@@ -24,6 +24,6 @@ public class NetworkController : MonoBehaviour {
 	}
 
 	void OnApplicationQuit() {
-		sending_socket.Send (new byte[]{255, 0, 0, 0, 0, 0, 0, 0, 0});
+		sending_socket.Send (new byte[]{255, 0, 0, 0, 0, 0, 0});
 	}
 }
