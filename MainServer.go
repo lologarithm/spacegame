@@ -42,7 +42,6 @@ func (s *Server) handleMessage() {
 }
 
 func (s *Server) DisconnectConn(addr_str string) {
-	fmt.Println("Disconnect from: ", addr_str)
 	close(s.connections[addr_str].incoming_bytes)
 	delete(s.connections, addr_str)
 }
