@@ -15,7 +15,7 @@ const (
 	LOGINREQUEST NetMessageType = 1
 	LOGINSUCCESS NetMessageType = 2
 	LOGINFAIL    NetMessageType = 3
-	PHYSICS      NetMessageType = 4
+	SETTHRUST    NetMessageType = 4
 	DISCONNECT   NetMessageType = 255
 )
 
@@ -111,7 +111,7 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 			msg := &LoginMessage{GameMessageValues: *gmv, LoggingIn: true}
 			return msg
 		}
-	case PHYSICS:
+	case SETTHRUST:
 		//5 USER CLEN [T1 PERC, T2 PERC]
 		num_percents := len(content) / 2
 		thrust_percents := make([]int16, num_percents)

@@ -73,11 +73,12 @@ func (ship *Ship) UpdateBytes() []byte {
 func (ship *Ship) CreateTestShip() {
 	ship.Id = 1
 	thrusters := []Thruster{
-		Thruster{Max: 1000.0, AngularPercent: 0.0, LinearPercent: 1.0, LinearVector: Vect2{0, 1}},
-		Thruster{Max: 500.0, AngularPercent: 1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}},
-		Thruster{Max: 500.0, AngularPercent: -1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}}}
+		Thruster{Max: 100.0, AngularPercent: 0.0, LinearPercent: 1.0, LinearVector: Vect2{0, 1}},
+		Thruster{Max: 50.0, AngularPercent: 1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}},
+		Thruster{Max: 50.0, AngularPercent: -1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}}}
 	ship.Hull = &Hull{Name: "TestShip", Thrusters: thrusters}
-
+	ship.Mass = 1000.0
+	ship.Position = Vect2{0, 0}
 }
 
 type Entity interface {
