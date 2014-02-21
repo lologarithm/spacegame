@@ -12,15 +12,26 @@ public class MovementController : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-		if (Input.GetKeyDown (KeyCode.W)) {
+		if (Input.GetKey(KeyCode.W)) {
 			Vector3 angles = this.transform.eulerAngles;
 			Vector3 vel = this.rigidbody2D.velocity;
-			this.rigidbody2D.AddForce(new Vector2(Mathf.Sin(rad_convert * angles.z) * -10, Mathf.Cos (rad_convert * angles.z)) * 10);
+			this.rigidbody2D.AddForce(new Vector2(Mathf.Sin(rad_convert * angles.z) * -1, Mathf.Cos (rad_convert * angles.z)) * 1);
 		} 
-		else if (Input.GetKeyDown (KeyCode.A)) {
-			this.rigidbody2D.AddTorque(100f);
-		} else if (Input.GetKeyDown (KeyCode.D)) {
-			this.rigidbody2D.AddTorque(-100f);
+
+		if (Input.GetKey(KeyCode.S)) {
+			Vector3 angles = this.transform.eulerAngles;
+			Vector3 vel = this.rigidbody2D.velocity;
+			if (vel.magnitude > 10) {
+				this.rigidbody2D.AddForce(new Vector2(Mathf.Sin(rad_convert * angles.z) * 1, Mathf.Cos (rad_convert * angles.z)) * -1);
+			}
+		}
+
+		if (Input.GetKey(KeyCode.A)) {
+			this.rigidbody2D.AddTorque(10f);
+		}
+
+		if (Input.GetKey(KeyCode.D)) {
+			this.rigidbody2D.AddTorque(-10f);
 		}
 	}
 }
