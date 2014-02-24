@@ -11,9 +11,15 @@ type GameMessageValues struct {
 type LoginMessage struct {
 	GameMessageValues
 	LoggingIn bool
+	ClientChannel chan
 }
 
 type SetThrustMessage struct {
 	GameMessageValues
 	ThrustPercent []int16
+}
+
+type PhysicsUpdate struct {
+	GameMessageValues
+	Ships []*Ship
 }

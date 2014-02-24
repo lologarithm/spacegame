@@ -5,21 +5,24 @@ import (
 	"encoding/binary"
 )
 
+// Users are 'accounts' that can login.
 type User struct {
-	Id              int32
+	Id              uint32
 	Name            string
 	Characters      []Character
 	ActiveCharacter *Character
 }
 
+// Character is the in-game representation of a User.
 type Character struct {
 	EntityData  // anonomous field gives character all entity fields
 	Health      int32
 	CurrentShip *Ship
 }
 
+// Unique data for all in game Entities.
 type EntityData struct {
-	Id int32 // Uniquely id this entity in space
+	Id uint32 // Uniquely id this entity in space
 }
 
 // Update message linked to an Entity.
@@ -70,15 +73,18 @@ func (ship *Ship) UpdateBytes() []byte {
 	return buf.Bytes()
 }
 
-func (ship *Ship) CreateTestShip() {
-	ship.Id = 1
+func (ship *Ship) CreateTestShip(id uint32, hull string) *Ship {
+	ship.Id = id
 	thrusters := []Thruster{
 		Thruster{Max: 100.0, AngularPercent: 0.0, LinearPercent: 1.0, LinearVector: Vect2{0, 1}},
 		Thruster{Max: 50.0, AngularPercent: 1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}},
 		Thruster{Max: 50.0, AngularPercent: -1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}}}
-	ship.Hull = &Hull{Name: "TestShip", Thrusters: thrusters}
+	ship.Hull = &Hull{Name: hull, Thrusters: thrusters}
 	ship.Mass = 1000.0
 	ship.Position = Vect2{0, 0}
+	ship.Velocity = Vect2{0, 0}
+	ship.Force = Vect2{0, 0}
+	return ship
 }
 
 type Entity interface {

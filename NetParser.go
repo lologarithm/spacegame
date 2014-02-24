@@ -7,58 +7,15 @@ import (
 	"net"
 )
 
-type NetMessageType byte
-
-// 0: echo, 1: login_request 2: login success 3: login failure/logoff 4: physics update
-const (
-	ECHO         NetMessageType = 0
-	LOGINREQUEST NetMessageType = 1
-	LOGINSUCCESS NetMessageType = 2
-	LOGINFAIL    NetMessageType = 3
-	SETTHRUST    NetMessageType = 4
-	DISCONNECT   NetMessageType = 255
-)
-
-type NetMessage struct {
-	raw_bytes   []byte
-	frame       *MessageFrame
-	destination *Client
-}
-
-func (m *NetMessage) Content() []byte {
-	return m.raw_bytes[m.frame.frame_length : m.frame.frame_length+m.frame.content_length]
-}
-
-type MessageFrame struct {
-	message_type   NetMessageType
-	from_user      int32
-	frame_length   int16
-	content_length int16
-}
-
-func ParseFrame(raw_bytes []byte) *MessageFrame {
-	if len(raw_bytes) >= 7 {
-		mf := new(MessageFrame)
-		mf.message_type = NetMessageType(raw_bytes[0])
-		var v int32
-		binary.Read(bytes.NewBuffer(raw_bytes[1:5]), binary.LittleEndian, &v)
-		mf.from_user = v
-		var cl int16
-		binary.Read(bytes.NewBuffer(raw_bytes[5:7]), binary.LittleEndian, &cl)
-		mf.content_length = cl
-		mf.frame_length = 7
-		return mf
-	}
-
-	return nil
-}
+// TODO: Track 'reliable' messages. Decide which need to be resent.
 
 type Client struct {
-	buffer         []byte
-	client_address *net.UDPAddr
-	incoming_bytes chan []byte
-	User           *User
-	quit           bool
+	buffer            []byte
+	client_address    *net.UDPAddr
+	incoming_bytes    chan []byte      // Bytes from client to server
+	outgoing_messages chan GameMessage // GameMessages from GameManger to client
+	User              *User            // User attached to this network client
+	quit              bool
 }
 
 // Accepts raw bytes from a socket and turns them into NetMessage objects and then
@@ -74,8 +31,9 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 			if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) >= len(client.buffer) {
 				if msg_frame.message_type == ECHO {
 					netmessage := &NetMessage{
-						frame:     msg_frame,
-						raw_bytes: client.buffer[0 : msg_frame.frame_length+msg_frame.content_length]}
+						frame:       msg_frame,
+						raw_bytes:   client.buffer[0 : msg_frame.frame_length+msg_frame.content_length],
+						destination: client}
 					outgoing_msg <- *netmessage
 				} else {
 					msg_obj := client.parseMessage(msg_frame)
@@ -125,4 +83,36 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 		return &LoginMessage{GameMessageValues: *gmv, LoggingIn: false}
 	}
 	return nil
+}
+
+func (lm *LoginMessage) CreateLoginMessageBytes(seq uint16) *NetMessage {
+	mt := LOGINSUCCESS
+	if !success {
+		mt = LOGINFAIL
+	}
+	m := &NetMessage{}
+	m.frame = &MessageFrame{message_type: mt, content_length: 1}
+	buf := new(bytes.Buffer)
+	buf.Grow(10)
+	buf.WriteByte(byte(mt))
+	binary.Write(buf, binary.LittleEndian, uint16(seq)) // Write seq
+	binary.Write(buf, binary.LittleEndian, uint16(1))   // Write 2 byte content len
+	buf.WriteByte(mt == LOGINSUCCESS)                   // Content, 1=="success"
+	m.raw_bytes = buf.Bytes()
+	return m
+}
+
+func (sm *SolarManager) CreateShipUpdateMessage() (m NetMessage) {
+	content_length := 20 * len(sm.ships)
+	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: int16(content_length)}
+	buf := new(bytes.Buffer)
+	buf.Grow(9 + content_length)
+	buf.WriteByte(4)
+	binary.Write(buf, binary.LittleEndian, int32(0))
+	binary.Write(buf, binary.LittleEndian, int32(content_length))
+	for _, ship := range sm.ships {
+		buf.Write(ship.UpdateBytes())
+	}
+	m.raw_bytes = buf.Bytes()
+	return
 }

@@ -9,11 +9,11 @@ import (
 
 // GameMessages come in. EntityUpdate objects goto physics. NetMessages go out to network.
 func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingNetwork chan NetMessage) {
-	sm := &SolarManager{ships: make(map[int32]*Ship, 50), last_update: time.Now()}
-	gm := &GameManager{Users: make(map[int32]*Client, 100)}
+	sm := &SolarManager{ships: make(map[uint32]*Ship, 50), last_update: time.Now()}
+	gm := &GameManager{Users: make(map[uint32]*Client, 100)}
 	into_simulator := make(chan EntityUpdate, 512)
 	out_simulator := make(chan EntityUpdate, 512)
-	simulator := &SolarSimulator{output_update: out_simulator, Entities: map[int32]Entity{}, Characters: map[int32]Entity{}}
+	simulator := &SolarSimulator{output_update: out_simulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}}
 	go simulator.RunSimulation(into_simulator)
 	update_time := int64(0)
 	update_count := 0
@@ -44,17 +44,19 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 			}
 		}
 		sm.last_update = time.Now()
-		base_message := sm.CreateShipUpdateMessage()
-		player_message := new(NetMessage)
+		// TODO: 1. find list of ships player can see. 2. Send list to netmanager for player to create message.
 		for _, user := range gm.Users {
+			//temp_ships = copy()sm.ships
 			*player_message = base_message
 			player_message.destination = user
 			outgoingNetwork <- *player_message
 		}
-		update_time += time.Now().Sub(sm.last_update).Nanoseconds()
+		last_update_time := time.Now().Sub(sm.last_update).Nanoseconds()
+		update_time += last_update_time
 		update_count += 1
 
 		if update_count%100 == 0 {
+			fmt.Printf("  **   Last player messaging time: %d microseconds\n", last_update_time)
 			fmt.Printf("  **Average player messaging time: %d microseconds\n", (update_time / int64(update_count*1000)))
 		}
 	}
@@ -64,8 +66,10 @@ func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simu
 	gm.Users[msg.FromUser] = msg.Client
 	gm.Users[msg.FromUser].User = &User{Id: msg.FromUser}
 	gm.Users[msg.FromUser].User.ActiveCharacter = &Character{EntityData: EntityData{Id: 0}}
-	ship_id := int32(len(sm.ships))
-	ship := CreateShip(ship_id, "A")
+
+	ship_id := uint32(len(sm.ships))
+	ship := CreateShip(ship_id, "TestShip")
+
 	sm.ships[ship_id] = ship
 	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
@@ -86,26 +90,8 @@ func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
 }
 
 // TODO: Check if ID already exists (logged off etc) and return that instead of creating.
-func CreateShip(ship_id int32, hull string) *Ship {
-	return &Ship{Hull: &Hull{Name: "A"}, EntityData: EntityData{Id: ship_id},
-		RigidBody: RigidBody{Mass: 2000, Position: Vect2{0, 0}, Velocity: Vect2{0, 0}, Force: Vect2{0, 0}}}
-}
-
-func CreateLoginMessage(user *User, success bool) *NetMessage {
-	mt := LOGINSUCCESS
-	if !success {
-		mt = LOGINFAIL
-	}
-	m := &NetMessage{}
-	m.frame = &MessageFrame{message_type: mt, frame_length: 9, content_length: 1}
-	buf := new(bytes.Buffer)
-	buf.Grow(10)
-	buf.WriteByte(byte(mt))
-	binary.Write(buf, binary.LittleEndian, int32(user.Id)) // Write 4byte user id
-	binary.Write(buf, binary.LittleEndian, int32(1))       // Write 4 byte content len
-	buf.WriteByte(1)                                       // Content, 1=="success"
-	m.raw_bytes = buf.Bytes()
-	return m
+func CreateShip(ship_id uint32, hull string) *Ship {
+	return (&Ship{}).CreateTestShip(ship_id, hull)
 }
 
 type GameManager struct {
@@ -118,19 +104,4 @@ type SolarManager struct {
 	characters  map[int32]*Character
 	ships       map[int32]*Ship
 	last_update time.Time
-}
-
-func (sm *SolarManager) CreateShipUpdateMessage() (m NetMessage) {
-	content_length := 20 * len(sm.ships)
-	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: int16(content_length)}
-	buf := new(bytes.Buffer)
-	buf.Grow(9 + content_length)
-	buf.WriteByte(4)
-	binary.Write(buf, binary.LittleEndian, int32(0))
-	binary.Write(buf, binary.LittleEndian, int32(content_length))
-	for _, ship := range sm.ships {
-		buf.Write(ship.UpdateBytes())
-	}
-	m.raw_bytes = buf.Bytes()
-	return
 }
