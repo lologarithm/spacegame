@@ -13,8 +13,8 @@ const (
 )
 
 type SolarSimulator struct {
-	Entities      map[int32]Entity // Anything that can collide in space
-	Characters    map[int32]Entity // Things that can go inside of ships
+	Entities      map[uint32]Entity // Anything that can collide in space
+	Characters    map[uint32]Entity // Things that can go inside of ships
 	last_update   time.Time
 	output_update chan EntityUpdate
 }

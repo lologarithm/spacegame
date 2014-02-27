@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 func (s *Server) sendMessages() {
 	for {
 		msg := <-s.outgoing_player

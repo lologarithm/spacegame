@@ -1,5 +1,10 @@
 package main
 
+import (
+	"bytes"
+	"encoding/binary"
+)
+
 type NetMessageType byte
 
 const (
@@ -27,7 +32,7 @@ type MessageFrame struct {
 	sequence       uint16         // byte 1-2
 	content_length uint16         // byte 3-4
 	from_user      uint32         // Determined by net addr the request came on.
-	frame_length   int16          // This is only here in case of dynamic sized frames.
+	frame_length   uint16         // This is only here in case of dynamic sized frames.
 }
 
 func ParseFrame(raw_bytes []byte) *MessageFrame {
@@ -38,7 +43,7 @@ func ParseFrame(raw_bytes []byte) *MessageFrame {
 		binary.Read(bytes.NewBuffer(raw_bytes[1:2]), binary.LittleEndian, &v)
 		mf.sequence = v
 		var cl uint16
-		binary.Read(bytes.NewBuffer(raw_bytes[5:7]), binary.LittleEndian, &cl)
+		binary.Read(bytes.NewBuffer(raw_bytes[3:4]), binary.LittleEndian, &cl)
 		mf.content_length = cl
 		mf.frame_length = 5
 		return mf

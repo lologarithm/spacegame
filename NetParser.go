@@ -15,6 +15,7 @@ type Client struct {
 	incoming_bytes    chan []byte      // Bytes from client to server
 	outgoing_messages chan GameMessage // GameMessages from GameManger to client
 	User              *User            // User attached to this network client
+	Seq               uint16
 	quit              bool
 }
 
@@ -23,33 +24,52 @@ type Client struct {
 func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg chan NetMessage, disconnect_player chan Client) {
 	client.quit = false
 	for !client.quit {
-		if dem_bytes, ok := <-client.incoming_bytes; !ok {
-			break
-		} else {
-			client.buffer = append(client.buffer, dem_bytes...)
-			msg_frame := ParseFrame(client.buffer)
-			if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) >= len(client.buffer) {
-				if msg_frame.message_type == ECHO {
-					netmessage := &NetMessage{
-						frame:       msg_frame,
-						raw_bytes:   client.buffer[0 : msg_frame.frame_length+msg_frame.content_length],
-						destination: client}
-					outgoing_msg <- *netmessage
-				} else {
-					msg_obj := client.parseMessage(msg_frame)
-					toGameManager <- msg_obj
-					// Only handling to do in this method is the checking for disconnect message.
-					switch msg_obj.(type) {
-					case *LoginMessage:
-						loginmsg, _ := msg_obj.(*LoginMessage)
-						if !loginmsg.LoggingIn {
-							disconnect_player <- *client
-							fmt.Printf("Disconnected Player: %v\n", client.client_address)
-							break
+		select {
+		case dem_bytes, ok := <-client.incoming_bytes:
+			if !ok {
+				break
+			} else {
+				client.buffer = append(client.buffer, dem_bytes...)
+				msg_frame := ParseFrame(client.buffer)
+				fmt.Printf("Buff: %v  Msg: %v\n  frame+content=%d len=%d\n", client.buffer, msg_frame, int(msg_frame.frame_length+msg_frame.content_length), len(client.buffer))
+				if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) <= len(client.buffer) {
+					fmt.Printf("Starting type check\n")
+					if msg_frame.message_type == ECHO {
+						netmessage := &NetMessage{
+							frame:       msg_frame,
+							raw_bytes:   client.buffer[0 : msg_frame.frame_length+msg_frame.content_length],
+							destination: client}
+						outgoing_msg <- *netmessage
+					} else {
+						msg_obj := client.parseMessage(msg_frame)
+						toGameManager <- msg_obj
+						switch msg_obj.(type) {
+						case *LoginMessage:
+							loginmsg, _ := msg_obj.(*LoginMessage)
+							if !loginmsg.LoggingIn {
+								disconnect_player <- *client
+								fmt.Printf("Disconnected Player: %v\n", client.client_address)
+								break
+							} else {
+								m := loginmsg.CreateLoginMessageBytes(client.Seq)
+								outgoing_msg <- *m
+								client.Seq += 1
+							}
 						}
 					}
+					client.buffer = client.buffer[msg_frame.frame_length+msg_frame.content_length:]
 				}
-				client.buffer = client.buffer[msg_frame.frame_length+msg_frame.content_length:]
+			}
+		case msg_out, ok := <-client.outgoing_messages:
+			if ok {
+				switch cast_msg := msg_out.(type) {
+				case PhysicsUpdateMessage:
+					ship_msg := CreateShipUpdateMessage(cast_msg.Ships, client.Seq)
+					outgoing_msg <- ship_msg
+					client.Seq += 1
+				}
+			} else {
+				break
 			}
 		}
 	}
@@ -61,18 +81,21 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 	content := client.buffer[msg_frame.frame_length : msg_frame.frame_length+msg_frame.content_length]
 	gmv := &GameMessageValues{FromUser: msg_frame.from_user, Client: client}
+	fmt.Printf("parseMessage: %v\n", msg_frame)
 	switch msg_frame.message_type {
 	case LOGINREQUEST:
 		password := string(content)
+		fmt.Printf("Found login message\n")
 		// TODO: Check password? Lookup user? Maybe this should go to the game manager
 		if password == "a" {
+			// TODO: actually load player?
 			msg := &LoginMessage{GameMessageValues: *gmv, LoggingIn: true}
 			return msg
 		}
 	case SETTHRUST:
 		//5 USER CLEN [T1 PERC, T2 PERC]
 		num_percents := len(content) / 2
-		thrust_percents := make([]int16, num_percents)
+		thrust_percents := make([]uint8, num_percents)
 		for i := 0; i < num_percents; i++ {
 			c_pos := i * 2
 			binary.Read(bytes.NewBuffer(content[c_pos:c_pos+2]), binary.LittleEndian, thrust_percents[i])
@@ -87,7 +110,7 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 
 func (lm *LoginMessage) CreateLoginMessageBytes(seq uint16) *NetMessage {
 	mt := LOGINSUCCESS
-	if !success {
+	if !lm.LoggingIn {
 		mt = LOGINFAIL
 	}
 	m := &NetMessage{}
@@ -95,22 +118,21 @@ func (lm *LoginMessage) CreateLoginMessageBytes(seq uint16) *NetMessage {
 	buf := new(bytes.Buffer)
 	buf.Grow(10)
 	buf.WriteByte(byte(mt))
-	binary.Write(buf, binary.LittleEndian, uint16(seq)) // Write seq
-	binary.Write(buf, binary.LittleEndian, uint16(1))   // Write 2 byte content len
-	buf.WriteByte(mt == LOGINSUCCESS)                   // Content, 1=="success"
+	binary.Write(buf, binary.LittleEndian, seq)       // Write seq
+	binary.Write(buf, binary.LittleEndian, uint16(0)) // Write 2 byte content len
 	m.raw_bytes = buf.Bytes()
 	return m
 }
 
-func (sm *SolarManager) CreateShipUpdateMessage() (m NetMessage) {
-	content_length := 20 * len(sm.ships)
-	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: int16(content_length)}
+func CreateShipUpdateMessage(ships []*Ship, seq uint16) (m NetMessage) {
+	content_length := 20 * len(ships)
+	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: uint16(content_length)}
 	buf := new(bytes.Buffer)
 	buf.Grow(9 + content_length)
 	buf.WriteByte(4)
-	binary.Write(buf, binary.LittleEndian, int32(0))
-	binary.Write(buf, binary.LittleEndian, int32(content_length))
-	for _, ship := range sm.ships {
+	binary.Write(buf, binary.LittleEndian, seq)                    // Write seq
+	binary.Write(buf, binary.LittleEndian, uint16(content_length)) // Write 2 byte content len
+	for _, ship := range ships {
 		buf.Write(ship.UpdateBytes())
 	}
 	m.raw_bytes = buf.Bytes()

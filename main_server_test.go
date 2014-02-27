@@ -93,8 +93,8 @@ func TestLogin(t *testing.T) {
 	//fmt.Println("Connection Complete")
 	message_bytes := new(bytes.Buffer)
 	message_bytes.WriteByte(1)
-	binary.Write(message_bytes, binary.LittleEndian, int32(0))
-	binary.Write(message_bytes, binary.LittleEndian, int16(1))
+	binary.Write(message_bytes, binary.LittleEndian, uint16(0))
+	binary.Write(message_bytes, binary.LittleEndian, uint16(1))
 	message_bytes.WriteByte(97)
 	conn.Write(message_bytes.Bytes())
 	if err != nil {
@@ -103,14 +103,14 @@ func TestLogin(t *testing.T) {
 	}
 	buf := make([]byte, 1024)
 	for i := 0; i < 10; i++ {
-		_, err := conn.Read(buf[0:])
+		n, err := conn.Read(buf[0:])
 		if err != nil {
 			fmt.Println(err)
 			t.FailNow()
 		}
-		//fmt.Println("Message recieved in test client: ", buf[0:n])
+		fmt.Println("Message recieved in test client: ", buf[0:n])
 	}
-	conn.Write([]byte{255, 0, 0, 0, 0, 0, 0, 0, 0})
+	conn.Write([]byte{255, 0, 0, 0, 0})
 	conn.Close()
 }
 

@@ -4,22 +4,21 @@ type GameMessage interface {
 }
 
 type GameMessageValues struct {
-	FromUser int32
+	FromUser uint32
 	Client   *Client
 }
 
 type LoginMessage struct {
 	GameMessageValues
 	LoggingIn bool
-	ClientChannel chan
 }
 
 type SetThrustMessage struct {
 	GameMessageValues
-	ThrustPercent []int16
+	ThrustPercent []uint8
 }
 
-type PhysicsUpdate struct {
+type PhysicsUpdateMessage struct {
 	GameMessageValues
 	Ships []*Ship
 }

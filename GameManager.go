@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"time"
 )
 
-// GameMessages come in. EntityUpdate objects goto physics. NetMessages go out to network.
+// GameMessages come in. EntityUpdate objects goto physics. GameMessages go out to use goroutines to parse.
 func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingNetwork chan NetMessage) {
 	sm := &SolarManager{ships: make(map[uint32]*Ship, 50), last_update: time.Now()}
 	gm := &GameManager{Users: make(map[uint32]*Client, 100)}
@@ -27,7 +25,7 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 				case *LoginMessage:
 					login_msg, _ := msg.(*LoginMessage)
 					if login_msg.LoggingIn {
-						outgoingNetwork <- HandleLogin(login_msg, gm, sm, into_simulator)
+						HandleLogin(login_msg, gm, sm, into_simulator)
 					} else {
 						HandleLogoff(login_msg, gm, sm)
 					}
@@ -44,25 +42,27 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 			}
 		}
 		sm.last_update = time.Now()
-		// TODO: 1. find list of ships player can see. 2. Send list to netmanager for player to create message.
 		for _, user := range gm.Users {
-			//temp_ships = copy()sm.ships
-			*player_message = base_message
-			player_message.destination = user
-			outgoingNetwork <- *player_message
+			temp_ships := []*Ship{}
+			// TODO: Cache currently visible ships and recheck them every so often instead of re-creating?
+			for _, ship := range sm.ships {
+				// Check if player can detect ship?
+				temp_ships = append(temp_ships, ship)
+			}
+			user.outgoing_messages <- &PhysicsUpdateMessage{Ships: temp_ships}
 		}
 		last_update_time := time.Now().Sub(sm.last_update).Nanoseconds()
 		update_time += last_update_time
 		update_count += 1
 
 		if update_count%100 == 0 {
-			fmt.Printf("  **   Last player messaging time: %d microseconds\n", last_update_time)
+			fmt.Printf("  **   Last player messaging time: %d microseconds\n", last_update_time/1000)
 			fmt.Printf("  **Average player messaging time: %d microseconds\n", (update_time / int64(update_count*1000)))
 		}
 	}
 }
 
-func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simulator chan EntityUpdate) NetMessage {
+func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simulator chan EntityUpdate) {
 	gm.Users[msg.FromUser] = msg.Client
 	gm.Users[msg.FromUser].User = &User{Id: msg.FromUser}
 	gm.Users[msg.FromUser].User.ActiveCharacter = &Character{EntityData: EntityData{Id: 0}}
@@ -73,10 +73,6 @@ func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager, into_simu
 	sm.ships[ship_id] = ship
 	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 	into_simulator <- *eu
-	success := true
-	m := CreateLoginMessage(gm.Users[msg.FromUser].User, success)
-	m.destination = msg.Client
-	return *m
 }
 
 func HandleLogoff(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
@@ -96,12 +92,12 @@ func CreateShip(ship_id uint32, hull string) *Ship {
 
 type GameManager struct {
 	// Player data
-	Users      map[int32]*Client
-	Characters map[int32]*Character
+	Users      map[uint32]*Client
+	Characters map[uint32]*Character
 }
 
 type SolarManager struct {
-	characters  map[int32]*Character
-	ships       map[int32]*Ship
+	characters  map[uint32]*Character
+	ships       map[uint32]*Ship
 	last_update time.Time
 }
