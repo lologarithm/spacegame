@@ -10,9 +10,9 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 	sm := &SolarManager{ships: make(map[uint32]*Ship, 50), last_update: time.Now()}
 	gm := &GameManager{Users: make(map[uint32]*Client, 100)}
 	into_simulator := make(chan EntityUpdate, 512)
-	//out_simulator := make(chan EntityUpdate, 512)
-	//simulator := &SolarSimulator{output_update: out_simulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, last_update: time.Now()}
-	//go simulator.RunSimulation(into_simulator)
+	out_simulator := make(chan EntityUpdate, 512)
+	simulator := &SolarSimulator{output_update: out_simulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, last_update: time.Now()}
+	go simulator.RunSimulation(into_simulator)
 	update_time := int64(0)
 	update_count := 0
 	for {
