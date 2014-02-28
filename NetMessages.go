@@ -39,12 +39,10 @@ func ParseFrame(raw_bytes []byte) *MessageFrame {
 	if len(raw_bytes) >= 5 {
 		mf := new(MessageFrame)
 		mf.message_type = NetMessageType(raw_bytes[0])
-		var v uint16
-		binary.Read(bytes.NewBuffer(raw_bytes[1:2]), binary.LittleEndian, &v)
-		mf.sequence = v
-		var cl uint16
-		binary.Read(bytes.NewBuffer(raw_bytes[3:4]), binary.LittleEndian, &cl)
-		mf.content_length = cl
+		vals := []uint16{0, 0}
+		binary.Read(bytes.NewBuffer(raw_bytes[1:5]), binary.LittleEndian, &vals)
+		mf.sequence = vals[0]
+		mf.content_length = vals[1]
 		mf.frame_length = 5
 		return mf
 	}

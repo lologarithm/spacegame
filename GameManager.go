@@ -10,9 +10,9 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 	sm := &SolarManager{ships: make(map[uint32]*Ship, 50), last_update: time.Now()}
 	gm := &GameManager{Users: make(map[uint32]*Client, 100)}
 	into_simulator := make(chan EntityUpdate, 512)
-	out_simulator := make(chan EntityUpdate, 512)
-	simulator := &SolarSimulator{output_update: out_simulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}}
-	go simulator.RunSimulation(into_simulator)
+	//out_simulator := make(chan EntityUpdate, 512)
+	//simulator := &SolarSimulator{output_update: out_simulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, last_update: time.Now()}
+	//go simulator.RunSimulation(into_simulator)
 	update_time := int64(0)
 	update_count := 0
 	for {
@@ -51,13 +51,15 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 			}
 			user.outgoing_messages <- &PhysicsUpdateMessage{Ships: temp_ships}
 		}
-		last_update_time := time.Now().Sub(sm.last_update).Nanoseconds()
-		update_time += last_update_time
-		update_count += 1
+		if len(gm.Users) > 0 {
+			last_update_time := time.Now().Sub(sm.last_update).Nanoseconds()
+			update_time += last_update_time
+			update_count += 1
 
-		if update_count%100 == 0 {
-			fmt.Printf("  **   Last player messaging time: %d microseconds\n", last_update_time/1000)
-			fmt.Printf("  **Average player messaging time: %d microseconds\n", (update_time / int64(update_count*1000)))
+			if update_count%100 == 0 {
+				fmt.Printf("  **   Last player messaging time: %d microseconds\n", last_update_time/1000)
+				fmt.Printf("  **Average player messaging time: %d microseconds\n", (update_time / int64(update_count*1000)))
+			}
 		}
 	}
 }

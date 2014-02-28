@@ -31,6 +31,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 			} else {
 				client.buffer = append(client.buffer, dem_bytes...)
 				msg_frame := ParseFrame(client.buffer)
+				fmt.Printf("Content Len: %v\n", msg_frame.content_length)
 				fmt.Printf("Buff: %v  Msg: %v\n  frame+content=%d len=%d\n", client.buffer, msg_frame, int(msg_frame.frame_length+msg_frame.content_length), len(client.buffer))
 				if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) <= len(client.buffer) {
 					fmt.Printf("Starting type check\n")
@@ -52,6 +53,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 								break
 							} else {
 								m := loginmsg.CreateLoginMessageBytes(client.Seq)
+								m.destination = client
 								outgoing_msg <- *m
 								client.Seq += 1
 							}
@@ -85,12 +87,15 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 	switch msg_frame.message_type {
 	case LOGINREQUEST:
 		password := string(content)
-		fmt.Printf("Found login message\n")
+		fmt.Printf("Found login message, password: %s\n", password)
 		// TODO: Check password? Lookup user? Maybe this should go to the game manager
 		if password == "a" {
+			fmt.Printf("Login Successful\n")
 			// TODO: actually load player?
 			msg := &LoginMessage{GameMessageValues: *gmv, LoggingIn: true}
 			return msg
+		} else {
+
 		}
 	case SETTHRUST:
 		//5 USER CLEN [T1 PERC, T2 PERC]
@@ -114,9 +119,9 @@ func (lm *LoginMessage) CreateLoginMessageBytes(seq uint16) *NetMessage {
 		mt = LOGINFAIL
 	}
 	m := &NetMessage{}
-	m.frame = &MessageFrame{message_type: mt, content_length: 1}
+	m.frame = &MessageFrame{message_type: mt, content_length: 0}
 	buf := new(bytes.Buffer)
-	buf.Grow(10)
+	buf.Grow(5)
 	buf.WriteByte(byte(mt))
 	binary.Write(buf, binary.LittleEndian, seq)       // Write seq
 	binary.Write(buf, binary.LittleEndian, uint16(0)) // Write 2 byte content len

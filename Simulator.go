@@ -44,6 +44,7 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 				break
 			}
 		}
+		ss.last_update = time.Now()
 		ss.Tick()
 	}
 }
