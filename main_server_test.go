@@ -79,7 +79,7 @@ func TestLogin(t *testing.T) {
 	outgoing_player := make(chan NetMessage, 200)
 	go RunServer(exit, incoming_requests, outgoing_player)
 	go ManageRequests(exit, incoming_requests, outgoing_player)
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Millisecond * 50)
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
 		fmt.Println(err)
@@ -101,14 +101,14 @@ func TestLogin(t *testing.T) {
 		fmt.Println(err)
 		t.FailNow()
 	}
-	buf := make([]byte, 1024)
-	for i := 0; i < 10; i++ {
-		n, err := conn.Read(buf[0:])
-		if err != nil {
-			fmt.Println(err)
-			t.FailNow()
-		}
-		fmt.Println("Message recieved in test client: ", buf[0:n])
+	buf := make([]byte, 512)
+	n, err := conn.Read(buf[0:])
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	if n < 5 || buf[0] != 2 {
+		t.FailNow()
 	}
 	conn.Write([]byte{255, 0, 0, 0, 0})
 	conn.Close()
@@ -135,8 +135,8 @@ func TestSetThrust(t *testing.T) {
 	fmt.Println("Logging in ")
 	message_bytes := new(bytes.Buffer)
 	message_bytes.WriteByte(1)
-	binary.Write(message_bytes, binary.LittleEndian, int32(1))
-	binary.Write(message_bytes, binary.LittleEndian, int16(1))
+	binary.Write(message_bytes, binary.LittleEndian, uint16(0))
+	binary.Write(message_bytes, binary.LittleEndian, uint16(1))
 	message_bytes.WriteByte(97)
 	conn.Write(message_bytes.Bytes())
 	_, err = conn.Read(buf[0:])
@@ -147,24 +147,17 @@ func TestSetThrust(t *testing.T) {
 	fmt.Println("Setting speed!")
 	message_bytes = new(bytes.Buffer)
 	message_bytes.WriteByte(5)
-	binary.Write(message_bytes, binary.LittleEndian, int32(1))
-	binary.Write(message_bytes, binary.LittleEndian, int16(2))
-	binary.Write(message_bytes, binary.LittleEndian, int16(50))
+	binary.Write(message_bytes, binary.LittleEndian, uint16(1))
+	binary.Write(message_bytes, binary.LittleEndian, uint16(1))
+	binary.Write(message_bytes, binary.LittleEndian, uint8(50))
 	conn.Write(message_bytes.Bytes())
 
 	if err != nil {
 		fmt.Println(err)
 		t.FailNow()
 	}
-
-	for i := 0; i < 10; i++ {
-		_, err := conn.Read(buf[0:])
-		if err != nil {
-			fmt.Println(err)
-			t.FailNow()
-		}
-		//fmt.Println("Message recieved in test client: ", buf[0:n])
-	}
-	conn.Write([]byte{255, 0, 0, 0, 0, 0, 0, 0, 0})
+	time.Sleep(time.Millisecond * 50)
+	// Do something here.
+	conn.Write([]byte{255, 0, 0, 0, 0})
 	conn.Close()
 }

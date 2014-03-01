@@ -24,7 +24,7 @@ type Server struct {
 
 func (s *Server) handleMessage() {
 	// TODO: Add timeout on read to check for stale connections and add new user connections.
-	s.conn.SetReadDeadline(time.Now().Add(time.Second))
+	s.conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 	n, addr, err := s.conn.ReadFromUDP(s.input_buffer)
 
 	if err != nil {
