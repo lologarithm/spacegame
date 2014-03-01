@@ -79,7 +79,7 @@ func TestLogin(t *testing.T) {
 	outgoing_player := make(chan NetMessage, 200)
 	go RunServer(exit, incoming_requests, outgoing_player)
 	go ManageRequests(exit, incoming_requests, outgoing_player)
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Millisecond * 50)
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
 		fmt.Println(err)
@@ -156,7 +156,8 @@ func TestSetThrust(t *testing.T) {
 		fmt.Println(err)
 		t.FailNow()
 	}
+	time.Sleep(time.Millisecond * 50)
 	// Do something here.
-	conn.Write([]byte{255, 0, 0, 0, 0, 0, 0, 0, 0})
+	conn.Write([]byte{255, 0, 0, 0, 0})
 	conn.Close()
 }
