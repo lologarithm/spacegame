@@ -16,24 +16,26 @@ func ManageRequests(exit chan int, incoming_requests chan GameMessage, outgoingN
 	update_time := int64(0)
 	update_count := 0
 	for {
-		timeout := sm.last_update.Add(time.Millisecond * 50).Sub(time.Now())
+		timeout := sm.last_update.Add(time.Millisecond * 40).Sub(time.Now())
 		wait_for_timeout := true
 		for wait_for_timeout {
 			select {
 			case msg := <-incoming_requests:
 				switch msg.(type) {
 				case *LoginMessage:
-					login_msg, _ := msg.(*LoginMessage)
-					if login_msg.LoggingIn {
-						HandleLogin(login_msg, gm, sm, into_simulator)
+					msg, _ := msg.(*LoginMessage)
+					if msg.LoggingIn {
+						HandleLogin(msg, gm, sm, into_simulator)
 					} else {
-						HandleLogoff(login_msg, gm, sm)
+						HandleLogoff(msg, gm, sm)
 					}
 				case *SetThrustMessage:
 					HandleThrust(&msg, gm, sm)
 				default:
 					fmt.Println("GameManager.go:ManageRequests(): UNKNOWN MESSAGE TYPE")
 				}
+			case msg := <-out_simulator:
+				HandlePhysicsUpdate(&msg, sm)
 			case <-time.After(timeout):
 				wait_for_timeout = false
 				break
@@ -85,6 +87,20 @@ func HandleLogoff(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
 func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
 	// TODO: Create ship designs that have angle of thruster
 	fmt.Println("SETTING SOME THRUSTER CRAP")
+}
+
+func HandlePhysicsUpdate(msg *EntityUpdate, sm *SolarManager) {
+	switch msg.EntityObj.(type) {
+	case *Ship:
+		ship, _ := msg.EntityObj.(Ship)
+		if msg.UpdateType == UPDATE_POSITION {
+			sm.ships[ship.Id].Angle = ship.Angle
+			sm.ships[ship.Id].Position = ship.Position
+			sm.ships[ship.Id].Velocity = ship.Velocity
+			sm.ships[ship.Id].AngularVelocity = ship.AngularVelocity
+		}
+	}
+
 }
 
 // TODO: Check if ID already exists (logged off etc) and return that instead of creating.

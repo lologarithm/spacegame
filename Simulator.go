@@ -10,6 +10,8 @@ const (
 	UPDATES_PER_SECOND = 50.0
 	UPDATE_SLEEP       = 1000 / UPDATES_PER_SECOND
 	FULL_CIRCLE        = math.Pi * 2
+	UPDATE_POSITION    = byte(4)
+	UPDATE_COLLISION   = byte(5)
 )
 
 type SolarSimulator struct {
@@ -50,7 +52,7 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 }
 
 func (ss *SolarSimulator) Tick() {
-	eu := &EntityUpdate{UpdateType: byte(4)}
+	eu := &EntityUpdate{UpdateType: UPDATE_POSITION}
 	for _, entity := range ss.Entities {
 		if ship, ok := entity.(Ship); ok {
 			changed := false

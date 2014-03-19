@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 )
 
 // TODO: Track 'reliable' messages. Decide which need to be resent.
@@ -20,7 +21,8 @@ type Client struct {
 }
 
 // Accepts raw bytes from a socket and turns them into NetMessage objects and then
-// later into GameMessages
+// later into GameMessages. These are passed into the GameManager. This function also
+// accepts outgoing messages from the GameManager to the client.
 func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg chan NetMessage, disconnect_player chan Client) {
 	client.quit = false
 	for !client.quit {
@@ -32,6 +34,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 				client.buffer = append(client.buffer, dem_bytes...)
 				msg_frame := ParseFrame(client.buffer)
 				if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) <= len(client.buffer) {
+					fmt.Println("Handling message: %v\n", msg_frame)
 					if msg_frame.message_type == ECHO {
 						netmessage := &NetMessage{
 							frame:       msg_frame,
@@ -82,14 +85,17 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 	gmv := &GameMessageValues{FromUser: msg_frame.from_user, Client: client}
 	switch msg_frame.message_type {
 	case LOGINREQUEST:
-		password := string(content)
+		user_pass := strings.Split(string(content), ":")
+		fmt.Printf("User: '%v''  Pass: '%v'\n", user_pass[0], user_pass[1])
 		// TODO: Check password? Lookup user? Maybe this should go to the game manager
-		if password == "a" {
-			// TODO: actually load player?
+		if user_pass[1] == "a" {
+			client.User = &User{Id: 0}
 			msg := &LoginMessage{GameMessageValues: *gmv, LoggingIn: true}
 			return msg
 		} else {
-
+			fmt.Printf("Not handling incorrect password yet.")
+			msg := &LoginMessage{GameMessageValues: *gmv, LoggingIn: false}
+			return msg
 		}
 	case SETTHRUST:
 		//5 USER CLEN [T1 PERC, T2 PERC]
@@ -107,25 +113,30 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 	return nil
 }
 
+func (m *NetMessage) CreateMessageBytes(content []byte) []byte {
+	buf := new(bytes.Buffer)
+	buf.Grow(5 + len(content))
+	buf.WriteByte(byte(m.frame.message_type))
+	binary.Write(buf, binary.LittleEndian, m.frame.sequence)
+	binary.Write(buf, binary.LittleEndian, m.frame.content_length)
+	binary.Write(buf, binary.LittleEndian, content)
+	return buf.Bytes()
+}
+
 func (lm *LoginMessage) CreateLoginMessageBytes(seq uint16) *NetMessage {
 	mt := LOGINSUCCESS
 	if !lm.LoggingIn {
 		mt = LOGINFAIL
 	}
 	m := &NetMessage{}
-	m.frame = &MessageFrame{message_type: mt, content_length: 0}
-	buf := new(bytes.Buffer)
-	buf.Grow(5)
-	buf.WriteByte(byte(mt))
-	binary.Write(buf, binary.LittleEndian, seq)       // Write seq
-	binary.Write(buf, binary.LittleEndian, uint16(0)) // Write 2 byte content len
-	m.raw_bytes = buf.Bytes()
+	m.frame = &MessageFrame{message_type: mt, content_length: 0, sequence: seq}
+	m.raw_bytes = m.CreateMessageBytes([]byte{})
 	return m
 }
 
 func CreateShipUpdateMessage(ships []*Ship, seq uint16) (m NetMessage) {
 	content_length := 20 * len(ships)
-	m.frame = &MessageFrame{message_type: 4, frame_length: 9, content_length: uint16(content_length)}
+	m.frame = &MessageFrame{message_type: 4, content_length: uint16(content_length)}
 	buf := new(bytes.Buffer)
 	buf.Grow(9 + content_length)
 	buf.WriteByte(4)
