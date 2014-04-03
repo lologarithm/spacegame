@@ -86,7 +86,9 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 	switch msg_frame.message_type {
 	case LOGINREQUEST:
 		user_pass := strings.Split(string(content), ":")
-		fmt.Printf("User: '%v''  Pass: '%v'\n", user_pass[0], user_pass[1])
+		fmt.Printf("UserVa: '%v\n", user_pass)
+
+		//fmt.Printf("User: '%v''  Pass: '%v'\n", user_pass[0], user_pass[1])
 		// TODO: Check password? Lookup user? Maybe this should go to the game manager
 		if user_pass[1] == "a" {
 			client.User = &User{Id: 0}
