@@ -66,10 +66,10 @@ type Client struct {
 func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg chan NetMessage, disconnect_player chan Client) {
 	client.quit = false
 	for !client.quit {
-		if dem_bytes, ok := <-client.incoming_bytes; !ok {
+		if new_bytes, ok := <-client.incoming_bytes; !ok {
 			break
 		} else {
-			client.buffer = append(client.buffer, dem_bytes...)
+			client.buffer = append(client.buffer, new_bytes...)
 			msg_frame := ParseFrame(client.buffer)
 			if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) >= len(client.buffer) {
 				if msg_frame.message_type == ECHO {
@@ -91,6 +91,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 						}
 					}
 				}
+				// Remove the used bytes from the buffer.
 				client.buffer = client.buffer[msg_frame.frame_length+msg_frame.content_length:]
 			}
 		}
