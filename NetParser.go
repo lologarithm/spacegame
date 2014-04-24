@@ -27,11 +27,11 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 	client.quit = false
 	for !client.quit {
 		select {
-		case dem_bytes, ok := <-client.incoming_bytes:
+		case new_bytes, ok := <-client.incoming_bytes:
 			if !ok {
 				break
 			} else {
-				client.buffer = append(client.buffer, dem_bytes...)
+				client.buffer = append(client.buffer, new_bytes...)
 				msg_frame := ParseFrame(client.buffer)
 				if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) <= len(client.buffer) {
 					fmt.Println("Handling message: %v\n", msg_frame)
@@ -59,6 +59,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 							}
 						}
 					}
+					// Remove the used bytes from the buffer.
 					client.buffer = client.buffer[msg_frame.frame_length+msg_frame.content_length:]
 				}
 			}
