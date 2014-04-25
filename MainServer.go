@@ -36,7 +36,7 @@ func (s *Server) handleMessage() {
 	}
 	if _, ok := s.connections[addr_str]; !ok {
 		fmt.Printf("New Connection: %v\n", addr_str)
-		s.connections[addr_str] = &Client{client_address: addr, incoming_bytes: make(chan []byte, 100)}
+		s.connections[addr_str] = &Client{client_address: addr, incoming_bytes: make(chan []byte, 100), outgoing_messages: make(chan GameMessage, 10)}
 		go s.connections[addr_str].ProcessBytes(s.incoming_requests, s.outgoing_player, s.disconnect_player)
 	}
 	s.connections[addr_str].incoming_bytes <- s.input_buffer[0:n]

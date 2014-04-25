@@ -18,10 +18,8 @@ func MultVect2(a *Vect2, s float32) *Vect2 {
 
 type Vect2 []float32
 
-// Modifies this vector
-func (v *Vect2) Add(v2 *Vect2) {
-	[]float32(*v)[0] += []float32(*v2)[0]
-	[]float32(*v2)[1] += []float32(*v2)[1]
+func (v *Vect2) Add(v2 *Vect2) *Vect2 {
+	return &Vect2{v.X() + v2.X(), v.Y() + v2.Y()}
 }
 
 func (v *Vect2) X() float32 {

@@ -58,6 +58,7 @@ type Thruster struct {
 	LinearVector   Vect2   // Unit Vector to apply thrust in.
 }
 
+// TODO: Move serial/deserial methdos to their own file. No need for them here.
 func (ship *Ship) UpdateBytes() []byte {
 	buf := new(bytes.Buffer)
 	buf.Grow(36)
@@ -71,6 +72,20 @@ func (ship *Ship) UpdateBytes() []byte {
 	binary.Write(buf, binary.LittleEndian, ship.AngularVelocity)
 	binary.Write(buf, binary.LittleEndian, ship.Torque)
 	return buf.Bytes()
+}
+
+func (ship *Ship) FromBytes(serial_ship []byte) {
+	vals := []float32{0, 0, 0, 0, 0, 0, 0, 0, 0}
+	binary.Read(bytes.NewBuffer(serial_ship), binary.LittleEndian, &vals)
+	ship.Position[0] = vals[0]
+	ship.Position[1] = vals[1]
+	ship.Velocity[0] = vals[2]
+	ship.Velocity[1] = vals[3]
+	ship.Force[0] = vals[4]
+	ship.Force[1] = vals[5]
+	ship.Angle = vals[6]
+	ship.AngularVelocity = vals[7]
+	ship.Torque = vals[8]
 }
 
 func (ship *Ship) CreateTestShip(id uint32, hull string) *Ship {

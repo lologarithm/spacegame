@@ -34,7 +34,7 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 				client.buffer = append(client.buffer, new_bytes...)
 				msg_frame := ParseFrame(client.buffer)
 				if msg_frame != nil && int(msg_frame.frame_length+msg_frame.content_length) <= len(client.buffer) {
-					fmt.Println("Handling message: %v\n", msg_frame)
+					//fmt.Printf("Handling message: %v\n", msg_frame)
 					if msg_frame.message_type == ECHO {
 						netmessage := &NetMessage{
 							frame:       msg_frame,
@@ -66,8 +66,8 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, outgoing_msg 
 		case msg_out, ok := <-client.outgoing_messages:
 			if ok {
 				switch cast_msg := msg_out.(type) {
-				case PhysicsUpdateMessage:
-					ship_msg := CreateShipUpdateMessage(cast_msg.Ships, client.Seq)
+				case *PhysicsUpdateMessage:
+					ship_msg := CreateShipUpdateMessage(cast_msg.Ships, client)
 					outgoing_msg <- ship_msg
 					client.Seq += 1
 				}
@@ -87,7 +87,7 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 	switch msg_frame.message_type {
 	case LOGINREQUEST:
 		user_pass := strings.Split(string(content), ":")
-		fmt.Printf("UserVa: '%v\n", user_pass)
+		fmt.Printf("User Name&Pass: %v\n", user_pass)
 
 		//fmt.Printf("User: '%v''  Pass: '%v'\n", user_pass[0], user_pass[1])
 		// TODO: Check password? Lookup user? Maybe this should go to the game manager
@@ -102,11 +102,10 @@ func (client *Client) parseMessage(msg_frame *MessageFrame) GameMessage {
 		}
 	case SETTHRUST:
 		//5 USER CLEN [T1 PERC, T2 PERC]
-		num_percents := len(content) / 2
+		num_percents := len(content)
 		thrust_percents := make([]uint8, num_percents)
 		for i := 0; i < num_percents; i++ {
-			c_pos := i * 2
-			binary.Read(bytes.NewBuffer(content[c_pos:c_pos+2]), binary.LittleEndian, thrust_percents[i])
+			thrust_percents[i] = uint8(content[i])
 		}
 		msg := &SetThrustMessage{GameMessageValues: *gmv, ThrustPercent: thrust_percents}
 		return msg
@@ -137,17 +136,18 @@ func (lm *LoginMessage) CreateLoginMessageBytes(seq uint16) *NetMessage {
 	return m
 }
 
-func CreateShipUpdateMessage(ships []*Ship, seq uint16) (m NetMessage) {
+func CreateShipUpdateMessage(ships []*Ship, cl *Client) (m NetMessage) {
 	content_length := 20 * len(ships)
 	m.frame = &MessageFrame{message_type: 4, content_length: uint16(content_length)}
 	buf := new(bytes.Buffer)
 	buf.Grow(9 + content_length)
 	buf.WriteByte(4)
-	binary.Write(buf, binary.LittleEndian, seq)                    // Write seq
+	binary.Write(buf, binary.LittleEndian, cl.Seq)                 // Write seq
 	binary.Write(buf, binary.LittleEndian, uint16(content_length)) // Write 2 byte content len
 	for _, ship := range ships {
 		buf.Write(ship.UpdateBytes())
 	}
 	m.raw_bytes = buf.Bytes()
+	m.destination = cl
 	return
 }

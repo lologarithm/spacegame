@@ -73,7 +73,7 @@ func BenchmarkEcho(t *testing.B) {
 }
 
 func TestLogin(t *testing.T) {
-	fmt.Println("Starting Login Test")
+	fmt.Println("\nStarting Login Test")
 	exit := make(chan int, 1)
 	incoming_requests := make(chan GameMessage, 200)
 	outgoing_player := make(chan NetMessage, 200)
@@ -114,6 +114,7 @@ func TestLogin(t *testing.T) {
 	}
 	conn.Write([]byte{255, 0, 0, 0, 0})
 	conn.Close()
+	fmt.Printf("TestLogin Test Pass.\n\n")
 }
 
 func TestSetThrust(t *testing.T) {
@@ -123,6 +124,7 @@ func TestSetThrust(t *testing.T) {
 	//go RunServer(exit, incoming_requests, outgoing_player)
 	//go ManageRequests(exit, incoming_requests, outgoing_player)
 	//time.Sleep(1 * time.Second)
+	fmt.Printf("Testing SetThrustMessage.\n")
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
 		fmt.Println(err)
@@ -143,12 +145,14 @@ func TestSetThrust(t *testing.T) {
 	message_bytes.WriteByte(58)
 	message_bytes.WriteByte(97)
 	conn.Write(message_bytes.Bytes())
-	_, err = conn.Read(buf[0:])
+	n, err := conn.Read(buf[0:])
 	if err != nil {
 		fmt.Println(err)
 		t.FailNow()
 	}
-	fmt.Println("Setting speed!")
+
+	fmt.Printf("TEST: Received: %v\n", buf[0:n])
+
 	message_bytes = new(bytes.Buffer)
 	message_bytes.WriteByte(5)
 	binary.Write(message_bytes, binary.LittleEndian, uint16(1))
@@ -156,12 +160,21 @@ func TestSetThrust(t *testing.T) {
 	binary.Write(message_bytes, binary.LittleEndian, uint8(50))
 	conn.Write(message_bytes.Bytes())
 
+	n, err = conn.Read(buf[0:])
 	if err != nil {
 		fmt.Println(err)
 		t.FailNow()
 	}
-	time.Sleep(time.Millisecond * 50)
+
+	fmt.Printf("TEST: Received: %v\n", buf[0:n])
+	if err != nil {
+		fmt.Println(err)
+		t.FailNow()
+	}
+	// TODO: FULLY VERIFY SHIP RESPONSE DATA.
+
 	// Do something here.
 	conn.Write([]byte{255, 0, 0, 0, 0})
 	conn.Close()
+	fmt.Printf("TestSetThrustMessage Complete.\n\n")
 }

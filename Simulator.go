@@ -10,6 +10,8 @@ const (
 	UPDATES_PER_SECOND = 50.0
 	UPDATE_SLEEP       = 1000 / UPDATES_PER_SECOND
 	FULL_CIRCLE        = math.Pi * 2
+	ADD_SHIP           = byte(1)
+	UPDATE_FORCES      = byte(3)
 	UPDATE_POSITION    = byte(4)
 	UPDATE_COLLISION   = byte(5)
 )
@@ -29,11 +31,11 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 		for wait_for_timeout {
 			select {
 			case update_msg := <-input_update:
-				if update_msg.UpdateType == 1 {
+				if update_msg.UpdateType == ADD_SHIP {
 					if ship, ok := update_msg.EntityObj.(Ship); ok {
 						ss.Entities[ship.Id] = Entity(ship)
 					}
-				} else if update_msg.UpdateType == 3 {
+				} else if update_msg.UpdateType == UPDATE_FORCES {
 					if update_ent, ok := update_msg.EntityObj.(Ship); ok {
 						if ship, ok := ss.Entities[update_ent.Id].(Ship); ok {
 							ship.Force = update_ent.Force
