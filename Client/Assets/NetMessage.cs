@@ -12,10 +12,11 @@ using System.Text;
 
 public class NetMessage {
 	public byte message_type;
-	public Int32 from_player;
-	public Int16 content_length;
+	public UInt16 sequence;
+	public UInt16 content_length;
 	public byte[] content;
 	public byte[] full_content;
+	public static byte frame_length;
 
 
 	public byte[] MessageBytes() {
@@ -24,7 +25,7 @@ public class NetMessage {
 		using (BinaryWriter writer = new BinaryWriter(stream))
 		{
 			writer.Write(this.message_type);
-			writer.Write(from_player);
+			writer.Write(sequence);
 			writer.Write(content_length);
 			writer.Write(content);
 		}
@@ -33,7 +34,7 @@ public class NetMessage {
 
 	public byte[] Content() {
 		byte[] content = null;
-		Array.Copy (this.full_content, 9, content, 0, this.full_content.Length - 9);
+		Array.Copy (this.full_content, 5, content, 0, this.full_content.Length - 5);
 		return content;
 	}
 
@@ -42,8 +43,8 @@ public class NetMessage {
 		if (bytes.Length >= 9) {
 			newMsg = new NetMessage ();
 			newMsg.message_type = bytes[0];
-			newMsg.from_player = BitConverter.ToInt32 (bytes, 1);
-			newMsg.content_length = BitConverter.ToInt16(bytes, 5);
+			newMsg.sequence = BitConverter.ToUInt16(bytes, 1);
+			newMsg.content_length = BitConverter.ToUInt16(bytes, 3);
 			if (bytes.Length > 9 + newMsg.content_length) {
 				Array.Copy (bytes, 0, newMsg.full_content, 0, 9+newMsg.content_length);
 			}
@@ -70,7 +71,7 @@ public class LoginMessage : NetMessage {
 	public LoginMessage(string password, string username) {
 		// TODO: need usr/pass separator
 		this.content = Encoding.ASCII.GetBytes(username + password);
-		this.content_length = (Int16)content.Length;
+		this.content_length = (UInt16)content.Length;
 	}
 }
 

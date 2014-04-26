@@ -75,10 +75,10 @@ func BenchmarkEcho(t *testing.B) {
 func TestLogin(t *testing.T) {
 	fmt.Println("\nStarting Login Test")
 	exit := make(chan int, 1)
-	incoming_requests := make(chan GameMessage, 200)
-	outgoing_player := make(chan NetMessage, 200)
-	go RunServer(exit, incoming_requests, outgoing_player)
-	go ManageRequests(exit, incoming_requests, outgoing_player)
+	incomingRequests := make(chan GameMessage, 200)
+	outgoingPlayer := make(chan NetMessage, 200)
+	go RunServer(exit, incomingRequests, outgoingPlayer)
+	go ManageRequests(exit, incomingRequests, outgoingPlayer)
 	time.Sleep(time.Millisecond * 50)
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
@@ -91,14 +91,14 @@ func TestLogin(t *testing.T) {
 		t.FailNow()
 	}
 	//fmt.Println("Connection Complete")
-	message_bytes := new(bytes.Buffer)
-	message_bytes.WriteByte(1)
-	binary.Write(message_bytes, binary.LittleEndian, uint16(0))
-	binary.Write(message_bytes, binary.LittleEndian, uint16(3))
-	message_bytes.WriteByte(97)
-	message_bytes.WriteByte(58)
-	message_bytes.WriteByte(97)
-	conn.Write(message_bytes.Bytes())
+	messageBytes := new(bytes.Buffer)
+	messageBytes.WriteByte(1)
+	binary.Write(messageBytes, binary.LittleEndian, uint16(0))
+	binary.Write(messageBytes, binary.LittleEndian, uint16(3))
+	messageBytes.WriteByte(97)
+	messageBytes.WriteByte(58)
+	messageBytes.WriteByte(97)
+	conn.Write(messageBytes.Bytes())
 	if err != nil {
 		fmt.Println(err)
 		t.FailNow()
@@ -160,7 +160,22 @@ func TestSetThrust(t *testing.T) {
 	binary.Write(message_bytes, binary.LittleEndian, uint8(50))
 	conn.Write(message_bytes.Bytes())
 
-	n, err = conn.Read(buf[0:])
+	HandleShipUpdateMessage(conn, t)
+	HandleShipUpdateMessage(conn, t)
+	HandleShipUpdateMessage(conn, t)
+	HandleShipUpdateMessage(conn, t)
+	HandleShipUpdateMessage(conn, t)
+
+	// Do something here.
+	conn.Write([]byte{255, 0, 0, 0, 0})
+	conn.Close()
+	fmt.Printf("TestSetThrustMessage Complete.\n\n")
+}
+
+func HandleShipUpdateMessage(conn *net.UDPConn, t *testing.T) {
+	buf := make([]byte, 1024)
+
+	n, err := conn.Read(buf[0:])
 	if err != nil {
 		fmt.Println(err)
 		t.FailNow()
@@ -172,9 +187,16 @@ func TestSetThrust(t *testing.T) {
 		t.FailNow()
 	}
 	// TODO: FULLY VERIFY SHIP RESPONSE DATA.
+	msg_frame, _ := ParseFrame(buf[0:n])
+	content := buf[msg_frame.frame_length : msg_frame.frame_length+msg_frame.content_length]
+	ships := []*Ship{&Ship{RigidBody: RigidBody{Position: Vect2{0, 0}, Velocity: Vect2{0, 0}, Force: Vect2{0, 0}}}}
 
-	// Do something here.
-	conn.Write([]byte{255, 0, 0, 0, 0})
-	conn.Close()
-	fmt.Printf("TestSetThrustMessage Complete.\n\n")
+	for i := 0; i*36 < len(content); i += 1 {
+		if len(ships) <= i {
+			ships = append(ships, &Ship{RigidBody: RigidBody{Position: Vect2{0, 0}, Velocity: Vect2{0, 0}, Force: Vect2{0, 0}}})
+		}
+		ships[i].FromBytes(content[i*36 : (i+1)*36])
+	}
+
+	fmt.Printf("Ships: %v\n", ships)
 }
