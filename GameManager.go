@@ -5,24 +5,46 @@ import (
 	"time"
 )
 
+type ServerManager struct {
+	// Player data
+	Users       map[uint32]*Client
+	Games       map[uint32]*GameManager
+	FromNetwork chan GameMessage
+	Exit        chan int
+}
+
+// TODO: Create a 'server manager' that is the main director. It will let players
+// join into a game
+func (sm *ServerManager) Run() {
+	// 1. List of players connected.
+	// 2. List of active games
+	// 3. Ability to create new game
+	// 4. Ability to join existing games.
+
+	// Players can create a game creating a new GameManager to run it.
+	// Each gamemanager will run its own game. It will have a channel for messages
+	// going into that game.
+	//gameManager := &GameManager{Users: make(map[uint32]*Client, 100), IntoSimulator: make(chan EntityUpdate, 512), OutSimulator: make(chan EntityUpdate, 512)}
+}
+
 // GameMessages come in. EntityUpdate objects goto physics. GameMessages go out to use goroutines to parse.
-func ManageRequests(exit chan int, fromNetwork chan GameMessage) {
+func (gameManager *GameManager) ManageRequests() {
 	solarManager := &SolarManager{ships: make(map[uint32]*Ship, 50), last_update: time.Now()}
-	gameManager := &GameManager{Users: make(map[uint32]*Client, 100), IntoSimulator: make(chan EntityUpdate, 512), OutSimulator: make(chan EntityUpdate, 512)}
-	simulator := &SolarSimulator{output_update: gameManager.OutSimulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, last_update: time.Now()}
-	go simulator.RunSimulation(gameManager.IntoSimulator)
+	simulator := &SolarSimulator{outSimulator: gameManager.OutSimulator, intoSimulator: gameManager.IntoSimulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, lastUpdate: time.Now()}
+	go simulator.RunSimulation()
 	update_time := int64(0)
 	update_count := 0
+	wait_for_timeout := true
 	// TODO: Ticker should be allocated once and just reset instead of creating new time.After
 	for {
-		timeout := solarManager.last_update.Add(time.Millisecond * 250).Sub(time.Now())
-		wait_for_timeout := true
+		timeout := solarManager.last_update.Add(time.Millisecond * 50).Sub(time.Now())
+		wait_for_timeout = true
 		for wait_for_timeout {
 			select {
 			case <-time.After(timeout):
 				wait_for_timeout = false
 				break
-			case msg := <-fromNetwork:
+			case msg := <-gameManager.FromNetwork:
 				fmt.Printf("GameManager: Received message: %T\n", msg)
 				switch msg.(type) {
 				case *LoginMessage:
@@ -38,13 +60,14 @@ func ManageRequests(exit chan int, fromNetwork chan GameMessage) {
 					fmt.Println("GameManager.go:ManageRequests(): UNKNOWN MESSAGE TYPE: %T", msg)
 				}
 			case msg := <-gameManager.OutSimulator:
+				fmt.Printf("Physics data from server.\n")
 				HandlePhysicsUpdate(&msg, solarManager)
 			case <-exit:
 				fmt.Println("EXITING MANAGER")
 				return
 			}
 		}
-		fmt.Printf("Sending client update!")
+		fmt.Printf("Sending client update!\n")
 		solarManager.last_update = time.Now()
 		for _, user := range gameManager.Users {
 			temp_ships := []*Ship{}
@@ -54,9 +77,7 @@ func ManageRequests(exit chan int, fromNetwork chan GameMessage) {
 				// Check if player can detect ship?
 				temp_ships = append(temp_ships, ship)
 			}
-			fmt.Printf("Sending Physics!")
 			user.fromGameManager <- PhysicsUpdateMessage{Ships: temp_ships}
-			fmt.Printf("Physics sent!")
 		}
 		if len(gameManager.Users) > 0 {
 			last_update_time := time.Now().Sub(solarManager.last_update).Nanoseconds()
@@ -106,12 +127,13 @@ func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
 
 	final_force := Vect2{0, 0}
 	final_torque := float32(0.0)
+	var t Thruster
 	for ind, thm := range st_msg.ThrustPercent {
 		if len(current_char.CurrentShip.Hull.Thrusters) <= ind {
 			// Handle error case of too many thrusters being set.
 			break
 		}
-		t := current_char.CurrentShip.Hull.Thrusters[ind]
+		t = current_char.CurrentShip.Hull.Thrusters[ind]
 		t.Current = t.Max * (float32(thm) / 100.0)
 
 		// Multipy linearvector by force to get total thrust vector.
@@ -149,6 +171,8 @@ type GameManager struct {
 	Characters    map[uint32]*Character
 	IntoSimulator chan EntityUpdate
 	OutSimulator  chan EntityUpdate
+	FromNetwork   chan GameMessage
+	Exit          chan int
 }
 
 type SolarManager struct {

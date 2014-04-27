@@ -13,21 +13,23 @@ import (
 type Client struct {
 	buffer          []byte
 	clientAddress   *net.UDPAddr
-	fromClient      chan []byte      // Bytes from client to server
+	fromNetwork     chan []byte      // Bytes from client to server
 	fromGameManager chan GameMessage // GameMessages from GameManger to client
+	toServerManager chan GameMessage // Messages to server manager to join a game
+	toGameManager   chan GameMessage // Messages to the game the client is connected to.
 	User            *User            // User attached to this network client
 	Seq             uint16
-	quit            bool
+	Quit            bool
 }
 
 // Accepts raw bytes from a socket and turns them into NetMessage objects and then
 // later into GameMessages. These are passed into the GameManager. This function also
 // accepts outgoing messages from the GameManager to the client.
 func (client *Client) ProcessBytes(toGameManager chan GameMessage, toClient chan NetMessage, disconnect_player chan Client) {
-	client.quit = false
-	for !client.quit {
+	client.Quit = false
+	for !client.Quit {
 		select {
-		case new_bytes, ok := <-client.fromClient:
+		case new_bytes, ok := <-client.fromNetwork:
 			if !ok {
 				break
 			} else {
@@ -66,7 +68,6 @@ func (client *Client) ProcessBytes(toGameManager chan GameMessage, toClient chan
 			}
 		case outgoingMsg, ok := <-client.fromGameManager:
 			if ok {
-				fmt.Printf("Message from game manager: %T", outgoingMsg)
 				switch cast_msg := outgoingMsg.(type) {
 				case PhysicsUpdateMessage:
 					ship_msg := CreateShipUpdateMessage(cast_msg.Ships, client)

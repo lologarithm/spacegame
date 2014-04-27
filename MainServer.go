@@ -36,14 +36,14 @@ func (s *Server) handleMessage() {
 	}
 	if _, ok := s.connections[addr_str]; !ok {
 		fmt.Printf("New Connection: %v\n", addr_str)
-		s.connections[addr_str] = &Client{clientAddress: addr, fromClient: make(chan []byte, 100), fromGameManager: make(chan GameMessage, 10)}
+		s.connections[addr_str] = &Client{clientAddress: addr, fromNetwork: make(chan []byte, 100), fromGameManager: make(chan GameMessage, 10)}
 		go s.connections[addr_str].ProcessBytes(s.toGameManager, s.outToNetwork, s.disconnectPlayer)
 	}
-	s.connections[addr_str].fromClient <- s.inputBuffer[0:n]
+	s.connections[addr_str].fromNetwork <- s.inputBuffer[0:n]
 }
 
 func (s *Server) DisconnectConn(addr_str string) {
-	close(s.connections[addr_str].fromClient)
+	close(s.connections[addr_str].fromNetwork)
 	delete(s.connections, addr_str)
 }
 

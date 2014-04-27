@@ -78,7 +78,7 @@ func TestLogin(t *testing.T) {
 	incomingRequests := make(chan GameMessage, 200)
 	outgoingPlayer := make(chan NetMessage, 200)
 	go RunServer(exit, incomingRequests, outgoingPlayer)
-	go ManageRequests(exit, incomingRequests, outgoingPlayer)
+	go ManageRequests(exit, incomingRequests)
 	time.Sleep(time.Millisecond * 50)
 	ra, err := net.ResolveUDPAddr("udp", "localhost:24816")
 	if err != nil {
