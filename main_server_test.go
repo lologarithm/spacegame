@@ -170,9 +170,10 @@ func TestSetThrust(t *testing.T) {
 	conn.Write([]byte{255, 0, 0, 0, 0})
 	conn.Close()
 	fmt.Printf("TestSetThrustMessage Complete.\n\n")
+	exit <- 1
 }
 
-func HandleShipUpdateMessage(conn *net.UDPConn, t *testing.T) {
+func HandleShipUpdateMessage(conn *net.UDPConn, t *testing.T) []*Ship {
 	buf := make([]byte, 1024)
 
 	n, err := conn.Read(buf[0:])
@@ -186,7 +187,7 @@ func HandleShipUpdateMessage(conn *net.UDPConn, t *testing.T) {
 		fmt.Println(err)
 		t.FailNow()
 	}
-	// TODO: FULLY VERIFY SHIP RESPONSE DATA.
+
 	msg_frame, _ := ParseFrame(buf[0:n])
 	content := buf[msg_frame.frame_length : msg_frame.frame_length+msg_frame.content_length]
 	ships := []*Ship{&Ship{RigidBody: RigidBody{Position: Vect2{0, 0}, Velocity: Vect2{0, 0}, Force: Vect2{0, 0}}}}
@@ -199,4 +200,5 @@ func HandleShipUpdateMessage(conn *net.UDPConn, t *testing.T) {
 	}
 
 	fmt.Printf("Ships: %v\n", ships)
+	return ships
 }

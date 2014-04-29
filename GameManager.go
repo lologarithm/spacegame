@@ -5,21 +5,51 @@ import (
 	"time"
 )
 
+// Manages all connected users and games.
 type ServerManager struct {
 	// Player data
-	Users       map[uint32]*Client
+	Clients     map[uint32]*Client
 	Games       map[uint32]*GameManager
 	FromNetwork chan GameMessage
+	FromGames   chan GameMessage
 	Exit        chan int
 }
 
-// TODO: Create a 'server manager' that is the main director. It will let players
-// join into a game
+// Manages players and ships for a single game.
+type GameManager struct {
+	// Player data
+	//Characters    map[uint32]*Character
+	Clients       map[uint32]*Client
+	IntoSimulator chan EntityUpdate // Channel for sending to physics sim for this game
+	OutSimulator  chan EntityUpdate // Channel for updates from physics sim
+	FromNetwork   chan GameMessage  // Messages from players.
+	Exit          chan int
+	Solar         *SolarManager
+}
+
+// Manages ships/physics for a single solar system in a game.
+type SolarManager struct {
+	characters  map[uint32]*Character
+	ships       map[uint32]*Ship
+	simulator   *SolarSimulator
+	last_update time.Time
+}
+
 func (sm *ServerManager) Run() {
+
+	for {
+		select {
+		case newMsg := <-sm.FromNetwork:
+			sm.ProcessNetMsg(newMsg)
+		case <-sm.Exit:
+			return
+		}
+	}
 	// 1. List of players connected.
+	//   a. Players able to login/logout
 	// 2. List of active games
-	// 3. Ability to create new game
-	// 4. Ability to join existing games.
+	//   a. Ability to create new game
+	//   b. Ability to join existing games.
 
 	// Players can create a game creating a new GameManager to run it.
 	// Each gamemanager will run its own game. It will have a channel for messages
@@ -27,9 +57,33 @@ func (sm *ServerManager) Run() {
 	//gameManager := &GameManager{Users: make(map[uint32]*Client, 100), IntoSimulator: make(chan EntityUpdate, 512), OutSimulator: make(chan EntityUpdate, 512)}
 }
 
+func (sm *ServerManager) ProcessNetMsg(msg GameMessage) {
+	switch msg.(type) {
+	case *LoginMessage:
+		l_msg, _ := msg.(*LoginMessage)
+		if l_msg.LoggingIn {
+			sm.HandleLogin(l_msg)
+		} else {
+			sm.HandleLogoff(l_msg)
+		}
+	}
+}
+
+func (sm *ServerManager) HandleLogin(msg *LoginMessage) {
+	sm.Clients[msg.FromUser] = msg.Client
+	sm.Clients[msg.FromUser].User = &User{Id: msg.FromUser}
+	//gm.Users[msg.FromUser].User.ActiveCharacter = &Character{EntityData: EntityData{Id: uint32(len(gm.Users))}}
+}
+
+func (sm *ServerManager) HandleLogoff(msg *LoginMessage) {
+	delete(sm.Clients, msg.FromUser)
+	// Ship removal?
+}
+
 // GameMessages come in. EntityUpdate objects goto physics. GameMessages go out to use goroutines to parse.
-func (gameManager *GameManager) ManageRequests() {
+func (gameManager *GameManager) RunGame() {
 	solarManager := &SolarManager{ships: make(map[uint32]*Ship, 50), last_update: time.Now()}
+
 	simulator := &SolarSimulator{outSimulator: gameManager.OutSimulator, intoSimulator: gameManager.IntoSimulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, lastUpdate: time.Now()}
 	go simulator.RunSimulation()
 	update_time := int64(0)
@@ -47,29 +101,22 @@ func (gameManager *GameManager) ManageRequests() {
 			case msg := <-gameManager.FromNetwork:
 				fmt.Printf("GameManager: Received message: %T\n", msg)
 				switch msg.(type) {
-				case *LoginMessage:
-					l_msg, _ := msg.(*LoginMessage)
-					if l_msg.LoggingIn {
-						HandleLogin(l_msg, gameManager, solarManager)
-					} else {
-						HandleLogoff(l_msg, gameManager, solarManager)
-					}
 				case *SetThrustMessage:
-					HandleThrust(&msg, gameManager, solarManager)
+					gameManager.HandleThrust(&msg)
 				default:
 					fmt.Println("GameManager.go:ManageRequests(): UNKNOWN MESSAGE TYPE: %T", msg)
 				}
 			case msg := <-gameManager.OutSimulator:
 				fmt.Printf("Physics data from server.\n")
 				HandlePhysicsUpdate(&msg, solarManager)
-			case <-exit:
+			case <-gameManager.Exit:
 				fmt.Println("EXITING MANAGER")
 				return
 			}
 		}
 		fmt.Printf("Sending client update!\n")
 		solarManager.last_update = time.Now()
-		for _, user := range gameManager.Users {
+		for _, user := range gameManager.Clients {
 			temp_ships := []*Ship{}
 			// TODO: Cache currently visible ships and recheck them every so often instead of re-creating?
 			// TODO: Actually calculate vision/sensor range
@@ -79,7 +126,7 @@ func (gameManager *GameManager) ManageRequests() {
 			}
 			user.fromGameManager <- PhysicsUpdateMessage{Ships: temp_ships}
 		}
-		if len(gameManager.Users) > 0 {
+		if len(gameManager.Clients) > 0 {
 			last_update_time := time.Now().Sub(solarManager.last_update).Nanoseconds()
 			update_time += last_update_time
 			update_count += 1
@@ -92,33 +139,28 @@ func (gameManager *GameManager) ManageRequests() {
 	}
 }
 
-func HandleLogin(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
-	gm.Users[msg.FromUser] = msg.Client
-	gm.Users[msg.FromUser].User = &User{Id: msg.FromUser}
-	gm.Users[msg.FromUser].User.ActiveCharacter = &Character{EntityData: EntityData{Id: uint32(len(gm.Users))}}
+func (gm *GameManager) HandleGameStart() {
 
-	ship_id := uint32(len(sm.ships))
-	ship := CreateShip(ship_id, "TestShip")
+	for index, client := range gm.Clients {
+		client.User.ActiveCharacter = &Character{}
+		ship_id := uint32(index)
+		ship := CreateShip(ship_id, "TestShip")
 
-	sm.ships[ship_id] = ship
-	eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
-	gm.IntoSimulator <- *eu
+		gm.Solar.ships[ship_id] = ship
+		eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
+		gm.IntoSimulator <- *eu
 
-	gm.Users[msg.FromUser].User.ActiveCharacter.CurrentShip = ship
+		client.User.ActiveCharacter.CurrentShip = ship
+	}
 }
 
-func HandleLogoff(msg *LoginMessage, gm *GameManager, sm *SolarManager) {
-	delete(gm.Users, msg.FromUser)
-	// Ship removal?
-}
-
-func HandleThrust(msg *GameMessage, gm *GameManager, sm *SolarManager) {
+func (gm *GameManager) HandleThrust(msg *GameMessage) {
 	st_msg, ok := (*msg).(*SetThrustMessage)
 	if !ok {
-		// TODO: Error handling?
+		// TODO: Error handling? This should never happen..
 		return
 	}
-	current_char := gm.Users[st_msg.FromUser].User.ActiveCharacter
+	current_char := gm.Clients[st_msg.FromUser].User.ActiveCharacter
 	if current_char.CurrentShip == nil {
 		// TODO: Check if player is 'pilot'
 		// TODO: Warn player he isnt flying a ship?
@@ -163,20 +205,4 @@ func HandlePhysicsUpdate(msg *EntityUpdate, sm *SolarManager) {
 // TODO: Check if ID already exists (logged off etc) and return that instead of creating.
 func CreateShip(ship_id uint32, hull string) *Ship {
 	return (&Ship{}).CreateTestShip(ship_id, hull)
-}
-
-type GameManager struct {
-	// Player data
-	Users         map[uint32]*Client
-	Characters    map[uint32]*Character
-	IntoSimulator chan EntityUpdate
-	OutSimulator  chan EntityUpdate
-	FromNetwork   chan GameMessage
-	Exit          chan int
-}
-
-type SolarManager struct {
-	characters  map[uint32]*Character
-	ships       map[uint32]*Ship
-	last_update time.Time
 }
