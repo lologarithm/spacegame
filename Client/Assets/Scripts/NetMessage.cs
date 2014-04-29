@@ -55,7 +55,7 @@ public class NetMessage {
 	}
 
 	public bool loadContent(byte[] bytes) {
-		if (bytes.Length > this.content_length) {
+		if (bytes.Length >= this.content_length) {
 			byte[] new_content = new byte[DEFAULT_FRAME_LEN + this.content_length];
 			Array.Copy (this.full_content, 0, new_content, 0, DEFAULT_FRAME_LEN);
 			Array.Copy(bytes, 0, new_content, DEFAULT_FRAME_LEN, this.content_length);

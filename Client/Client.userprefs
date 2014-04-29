@@ -1,12 +1,13 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="MonoDevelop.Default" />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
   <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Scripts\Tracker.cs">
     <Files>
-      <File FileName="Assets\Scripts\MovementController.cs" Line="13" Column="3" />
-      <File FileName="Assets\Scripts\NetMessage.cs" Line="14" Column="2" />
+      <File FileName="Assets\Scripts\MovementController.cs" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\MovementController.cs" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\NetMessage.cs" Line="1" Column="1" />
       <File FileName="Assets\Scripts\Tracker.cs" Line="21" Column="5" />
       <File FileName="Assets\Scripts\Controllers\GameController.cs" Line="1" Column="1" />
-      <File FileName="Assets\Scripts\Controllers\NetworkController.cs" Line="11" Column="31" />
+      <File FileName="Assets\Scripts\Controllers\NetworkController.cs" Line="1" Column="1" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
