@@ -1,30 +1,30 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 type NetMessageType byte
 
 const (
-	ECHO         NetMessageType = 0
-	LOGINREQUEST NetMessageType = 1
-	LOGINSUCCESS NetMessageType = 2
-	LOGINFAIL    NetMessageType = 3
-	PHYSICS      NetMessageType = 4
-	SETTHRUST    NetMessageType = 5
-	DISCONNECT   NetMessageType = 255
+	Echo         NetMessageType = 0
+	LoginRequest NetMessageType = 1
+	LoginSuccess NetMessageType = 2
+	LoginFail    NetMessageType = 3
+	Physics      NetMessageType = 4
+	SetThrust    NetMessageType = 5
+	Disconnect   NetMessageType = 255
 )
 
 type NetMessage struct {
-	raw_bytes   []byte
-	frame       *MessageFrame
+	rawBytes    []byte
+	frame       MessageFrame
 	destination *Client
 }
 
 func (m *NetMessage) Content() []byte {
-	return m.raw_bytes[m.frame.frame_length : m.frame.frame_length+m.frame.content_length]
+	return m.rawBytes[m.frame.frame_length : m.frame.frame_length+m.frame.content_length]
 }
 
 type MessageFrame struct {
@@ -35,17 +35,17 @@ type MessageFrame struct {
 	frame_length   uint16         // This is only here in case of dynamic sized frames.
 }
 
-func ParseFrame(raw_bytes []byte) *MessageFrame {
-	if len(raw_bytes) >= 5 {
-		mf := new(MessageFrame)
-		mf.message_type = NetMessageType(raw_bytes[0])
-		vals := []uint16{0, 0}
-		binary.Read(bytes.NewBuffer(raw_bytes[1:5]), binary.LittleEndian, &vals)
-		mf.sequence = vals[0]
-		mf.content_length = vals[1]
-		mf.frame_length = 5
-		return mf
-	}
+func (mf MessageFrame) String() string {
+	return fmt.Sprintf("Type: %d, Seq: %d, CL: %d, FL: %d\n", mf.message_type, mf.sequence, mf.content_length, mf.frame_length)
+}
 
-	return nil
+func ParseFrame(rawBytes []byte) (mf MessageFrame, ok bool) {
+	if len(rawBytes) < 5 {
+		return
+	}
+	mf.message_type = NetMessageType(rawBytes[0])
+	mf.sequence = binary.LittleEndian.Uint16(rawBytes[1:3])
+	mf.content_length = binary.LittleEndian.Uint16(rawBytes[3:5])
+	mf.frame_length = 5
+	return mf, true
 }

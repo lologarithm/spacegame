@@ -14,13 +14,13 @@ func TestTick(t *testing.T) {
 	ship1.Velocity = Vect2{1, 1}
 	ship1.Position = Vect2{0, 0}
 	ship1.Force = Vect2{0, 0}
-	ss.Entities[1] = Entity(*ship1)
+	ss.Entities[1] = Entity(ship1)
 	// 2. Make sure single tick correctly ticks.
 	for i := float32(1); i < 50.0; i += 1 {
 		ss.Tick()
-		if ship, ok := ss.Entities[1].(Ship); ok {
-			if !FloatCompare(ship.Position.X(), i/50.0) {
-				fmt.Printf("Incorrect X position after physics update. Expected: %f Actual: %f\n", i/50.0, ship.Position.X())
+		if ship, ok := ss.Entities[1].(*Ship); ok {
+			if !FloatCompare(ship.Position.X, i/50.0) {
+				fmt.Printf("Incorrect X position after physics update. Expected: %f Actual: %f\n", i/50.0, ship.Position.X)
 				t.FailNow()
 			}
 			//fmt.Printf("(%d)Position: (%f, %f)\n", i, ship.Position.X(), ship.Position.Y())

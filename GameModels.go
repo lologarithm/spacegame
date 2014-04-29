@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 // Users are 'accounts' that can login.
@@ -58,19 +59,34 @@ type Thruster struct {
 	LinearVector   Vect2   // Unit Vector to apply thrust in.
 }
 
+// TODO: Move serial/deserial methdos to their own file. No need for them here.
 func (ship *Ship) UpdateBytes() []byte {
 	buf := new(bytes.Buffer)
 	buf.Grow(36)
-	binary.Write(buf, binary.LittleEndian, ship.Position[0])
-	binary.Write(buf, binary.LittleEndian, ship.Position[1])
-	binary.Write(buf, binary.LittleEndian, ship.Velocity[0])
-	binary.Write(buf, binary.LittleEndian, ship.Velocity[1])
-	binary.Write(buf, binary.LittleEndian, ship.Force[0])
-	binary.Write(buf, binary.LittleEndian, ship.Force[1])
+	binary.Write(buf, binary.LittleEndian, ship.Position.X)
+	binary.Write(buf, binary.LittleEndian, ship.Position.Y)
+	binary.Write(buf, binary.LittleEndian, ship.Velocity.X)
+	binary.Write(buf, binary.LittleEndian, ship.Velocity.Y)
+	binary.Write(buf, binary.LittleEndian, ship.Force.X)
+	binary.Write(buf, binary.LittleEndian, ship.Force.Y)
 	binary.Write(buf, binary.LittleEndian, ship.Angle)
 	binary.Write(buf, binary.LittleEndian, ship.AngularVelocity)
 	binary.Write(buf, binary.LittleEndian, ship.Torque)
 	return buf.Bytes()
+}
+
+func (ship *Ship) FromBytes(serial_ship []byte) {
+	vals := []float32{0, 0, 0, 0, 0, 0, 0, 0, 0}
+	binary.Read(bytes.NewBuffer(serial_ship), binary.LittleEndian, &vals)
+	ship.Position.X = vals[0]
+	ship.Position.Y = vals[1]
+	ship.Velocity.X = vals[2]
+	ship.Velocity.Y = vals[3]
+	ship.Force.X = vals[4]
+	ship.Force.Y = vals[5]
+	ship.Angle = vals[6]
+	ship.AngularVelocity = vals[7]
+	ship.Torque = vals[8]
 }
 
 func (ship *Ship) CreateTestShip(id uint32, hull string) *Ship {
@@ -81,10 +97,17 @@ func (ship *Ship) CreateTestShip(id uint32, hull string) *Ship {
 		Thruster{Max: 50.0, AngularPercent: -1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}}}
 	ship.Hull = &Hull{Name: hull, Thrusters: thrusters}
 	ship.Mass = 1000.0
+	ship.InvMass = 1.0 / ship.Mass
+	ship.Inertia = 1000.0
+	ship.InvInertia = 1.0 / 1000.0
 	ship.Position = Vect2{0, 0}
 	ship.Velocity = Vect2{0, 0}
 	ship.Force = Vect2{0, 0}
 	return ship
+}
+
+func (ship *Ship) String() string {
+	return fmt.Sprintf("ID: %d, Pos: %v, Vel: %v, Force: %v", ship.Id, ship.Position, ship.Velocity, ship.Force)
 }
 
 type Entity interface {

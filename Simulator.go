@@ -7,11 +7,13 @@ import (
 )
 
 const (
-	UPDATES_PER_SECOND = 50.0
-	UPDATE_SLEEP       = 1000 / UPDATES_PER_SECOND
-	FULL_CIRCLE        = math.Pi * 2
-	UPDATE_POSITION    = byte(4)
-	UPDATE_COLLISION   = byte(5)
+	UpdatesPerSecond = 50.0
+	UpdateSleep      = 1000.0 / UpdatesPerSecond
+	FullCircle       = math.Pi * 2
+	AddShip          = byte(1)
+	UpdateForces     = byte(3)
+	UpdatePosition   = byte(4)
+	UpdateCollision  = byte(5)
 )
 
 type SolarSimulator struct {
@@ -24,18 +26,18 @@ type SolarSimulator struct {
 func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 	// Wait
 	for {
-		timeout := ss.last_update.Add(time.Millisecond * UPDATE_SLEEP).Sub(time.Now())
+		timeout := ss.last_update.Add(time.Millisecond * UpdateSleep).Sub(time.Now())
 		wait_for_timeout := true
 		for wait_for_timeout {
 			select {
 			case update_msg := <-input_update:
-				if update_msg.UpdateType == 1 {
+				if update_msg.UpdateType == AddShip {
 					if ship, ok := update_msg.EntityObj.(Ship); ok {
-						ss.Entities[ship.Id] = Entity(ship)
+						ss.Entities[ship.Id] = Entity(&ship)
 					}
-				} else if update_msg.UpdateType == 3 {
+				} else if update_msg.UpdateType == UpdateForces {
 					if update_ent, ok := update_msg.EntityObj.(Ship); ok {
-						if ship, ok := ss.Entities[update_ent.Id].(Ship); ok {
+						if ship, ok := ss.Entities[update_ent.Id].(*Ship); ok {
 							ship.Force = update_ent.Force
 							ship.Torque = update_ent.Torque
 						}
@@ -52,35 +54,35 @@ func (ss *SolarSimulator) RunSimulation(input_update chan EntityUpdate) {
 }
 
 func (ss *SolarSimulator) Tick() {
-	eu := &EntityUpdate{UpdateType: UPDATE_POSITION}
+	eu := EntityUpdate{UpdateType: UpdatePosition}
 	for _, entity := range ss.Entities {
-		if ship, ok := entity.(Ship); ok {
+		if ship, ok := entity.(*Ship); ok {
 			changed := false
 
-			ship.Velocity.Add(MultVect2(&ship.Force, ship.InvMass/UPDATES_PER_SECOND))
-			ship.AngularVelocity += (ship.Torque * ship.InvInertia) / UPDATES_PER_SECOND
+			ship.Velocity = ship.Velocity.Add(MultVect2(ship.Force, ship.InvMass/UpdatesPerSecond))
+			ship.AngularVelocity += (ship.Torque * ship.InvInertia) / UpdatesPerSecond
 
-			if ship.Velocity[0] != 0.0 {
-				ship.Position[0] += ship.Velocity[0] / UPDATES_PER_SECOND
+			if ship.Velocity.X != 0.0 {
+				ship.Position.X += ship.Velocity.X / UpdatesPerSecond
 				changed = true
 			}
-			if ship.Velocity[1] != 0.0 {
-				ship.Position[1] += ship.Velocity[1] / UPDATES_PER_SECOND
+			if ship.Velocity.Y != 0.0 {
+				ship.Position.Y += ship.Velocity.Y / UpdatesPerSecond
 				changed = true
 			}
 			if ship.AngularVelocity != 0.0 {
-				ship.Angle += ship.AngularVelocity / UPDATES_PER_SECOND
-				for ship.Angle > FULL_CIRCLE {
-					ship.Angle -= FULL_CIRCLE
+				ship.Angle += ship.AngularVelocity / UpdatesPerSecond
+				for ship.Angle > FullCircle {
+					ship.Angle -= FullCircle
 				}
-				for ship.Angle < -FULL_CIRCLE {
-					ship.Angle += FULL_CIRCLE
+				for ship.Angle < -FullCircle {
+					ship.Angle += FullCircle
 				}
 				changed = true
 			}
 			if changed {
-				eu.EntityObj = Entity(ship)
-				ss.output_update <- *eu
+				eu.EntityObj = Entity(*ship)
+				ss.output_update <- eu
 			}
 		} else {
 			fmt.Println("That was not a ship")
