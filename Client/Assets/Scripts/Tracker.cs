@@ -4,7 +4,7 @@ using System.Collections;
 public class Tracker : MonoBehaviour {
 	public GameObject tracked;
 	public GameObject background;
-	private float scale = 0.45f;
+	private float scale = 0.16f;
 
 	// Use this for initialization
 	void Start () {
@@ -16,14 +16,14 @@ public class Tracker : MonoBehaviour {
 		if (Input.GetAxis("Mouse ScrollWheel") < 0) // back
 		{
 			if (Camera.main.orthographicSize < 10) {
-				((Camera)this.camera).orthographicSize += 1;
+				((Camera)this.camera).orthographicSize += 0.5f;
 				this.background.transform.localScale = new Vector3(this.background.transform.localScale.x+scale,this.background.transform.localScale.y+scale,1);
 			}
 		}
 		if (Input.GetAxis("Mouse ScrollWheel") > 0) // forward
 		{
 			if (Camera.main.orthographicSize > 2) {
-				((Camera)this.camera).orthographicSize -= 1;
+				((Camera)this.camera).orthographicSize -= 0.5f;
 				this.background.transform.localScale = new Vector3(this.background.transform.localScale.x-scale,this.background.transform.localScale.y-scale,1);
 			}
 		}
