@@ -5,11 +5,21 @@ import (
 	"time"
 )
 
+const (
+	CreateGame  = byte(1)
+	GameInLobby = byte(2)
+	JoinGame    = byte(3)
+	QuitGame    = byte(4)
+	GameRunning = byte(5)
+	GameEnded   = byte(6)
+)
+
 // Manages all connected users and games.
 type ServerManager struct {
 	// Player data
 	Clients     map[uint32]*Client
 	Games       map[uint32]*GameManager
+	NextGameId  uint32
 	FromNetwork chan GameMessage
 	FromGames   chan GameMessage
 	Exit        chan int
@@ -18,30 +28,36 @@ type ServerManager struct {
 // Manages players and ships for a single game.
 type GameManager struct {
 	// Player data
-	//Characters    map[uint32]*Character
-	Clients       map[uint32]*Client
-	IntoSimulator chan EntityUpdate // Channel for sending to physics sim for this game
-	OutSimulator  chan EntityUpdate // Channel for updates from physics sim
-	FromNetwork   chan GameMessage  // Messages from players.
-	Exit          chan int
-	Solar         *SolarManager
+	Clients           map[uint32]*Client
+	IntoSimulator     chan EntityUpdate // Channel for sending to physics sim for this game
+	OutSimulator      chan EntityUpdate // Channel for updates from physics sim
+	IntoServerManager chan GameMessage
+	FromNetwork       chan GameMessage // Messages from players.
+	Exit              chan int
+	Solar             *SolarManager
+	Status            byte
 }
 
 // Manages ships/physics for a single solar system in a game.
 type SolarManager struct {
-	characters  map[uint32]*Character
-	ships       map[uint32]*Ship
-	simulator   *SolarSimulator
-	last_update time.Time
+	Characters map[uint32]*Character
+	Ships      map[uint32]*Ship
+	Simulator  *SolarSimulator
+	lastUpdate time.Time
 }
 
 func (sm *ServerManager) Run() {
 
 	for {
 		select {
-		case newMsg := <-sm.FromNetwork:
-			sm.ProcessNetMsg(newMsg)
+		case netMsg := <-sm.FromNetwork:
+			sm.ProcessNetMsg(netMsg)
+		case gMsg := <-sm.FromGames:
+			sm.ProcessGameMsg(gMsg)
 		case <-sm.Exit:
+			for _, game := range sm.Games {
+				game.Exit <- 1
+			}
 			return
 		}
 	}
@@ -54,18 +70,46 @@ func (sm *ServerManager) Run() {
 	// Players can create a game creating a new GameManager to run it.
 	// Each gamemanager will run its own game. It will have a channel for messages
 	// going into that game.
-	//gameManager := &GameManager{Users: make(map[uint32]*Client, 100), IntoSimulator: make(chan EntityUpdate, 512), OutSimulator: make(chan EntityUpdate, 512)}
+	//
 }
 
 func (sm *ServerManager) ProcessNetMsg(msg GameMessage) {
 	switch msg.(type) {
 	case *LoginMessage:
-		l_msg, _ := msg.(*LoginMessage)
-		if l_msg.LoggingIn {
-			sm.HandleLogin(l_msg)
+		loginMsg, _ := msg.(*LoginMessage)
+		if loginMsg.LoggingIn {
+			sm.HandleLogin(loginMsg)
 		} else {
-			sm.HandleLogoff(l_msg)
+			sm.HandleLogoff(loginMsg)
 		}
+	case *PlayerGameMessage:
+		pgMsg, _ := msg.(*PlayerGameMessage)
+		switch pgMsg.GameAction {
+		case CreateGame:
+			newGame := &GameManager{
+				Clients:           make(map[uint32]*Client, 100),
+				IntoSimulator:     make(chan EntityUpdate, 512),
+				OutSimulator:      make(chan EntityUpdate, 512),
+				FromNetwork:       make(chan GameMessage, 100),
+				IntoServerManager: sm.FromGames,
+			}
+			pgMsg.Client.toGameManager = newGame.FromNetwork
+			go newGame.RunGame()
+			sm.Games[sm.NextGameId] = newGame
+			sm.NextGameId += 1 // TODO: This could overflow after a long time. Should wrap back to 0.
+		case JoinGame:
+			if game, ok := sm.Games[pgMsg.GameId]; ok {
+				game.FromNetwork <- msg
+			}
+
+		}
+	}
+}
+
+func (sm *ServerManager) ProcessGameMsg(msg GameMessage) {
+	switch msg.(type) {
+	case *GameStatusMessage:
+		gStatusMsg, _ := msg.(*GameStatusMessage)
 	}
 }
 
@@ -82,16 +126,20 @@ func (sm *ServerManager) HandleLogoff(msg *LoginMessage) {
 
 // GameMessages come in. EntityUpdate objects goto physics. GameMessages go out to use goroutines to parse.
 func (gameManager *GameManager) RunGame() {
-	solarManager := &SolarManager{ships: make(map[uint32]*Ship, 50), last_update: time.Now()}
+	solarManager := &SolarManager{Ships: make(map[uint32]*Ship, 50), lastUpdate: time.Now()}
 
-	simulator := &SolarSimulator{outSimulator: gameManager.OutSimulator, intoSimulator: gameManager.IntoSimulator, Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, lastUpdate: time.Now()}
+	simulator := &SolarSimulator{
+		outSimulator: gameManager.OutSimulator, intoSimulator: gameManager.IntoSimulator,
+		Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, lastUpdate: time.Now(),
+	}
+	solarManager.Simulator = simulator
 	go simulator.RunSimulation()
 	update_time := int64(0)
 	update_count := 0
 	wait_for_timeout := true
 	// TODO: Ticker should be allocated once and just reset instead of creating new time.After
 	for {
-		timeout := solarManager.last_update.Add(time.Millisecond * 50).Sub(time.Now())
+		timeout := solarManager.lastUpdate.Add(time.Millisecond * 50).Sub(time.Now())
 		wait_for_timeout = true
 		for wait_for_timeout {
 			select {
@@ -115,19 +163,19 @@ func (gameManager *GameManager) RunGame() {
 			}
 		}
 		fmt.Printf("Sending client update!\n")
-		solarManager.last_update = time.Now()
+		solarManager.lastUpdate = time.Now()
 		for _, user := range gameManager.Clients {
 			temp_ships := []*Ship{}
 			// TODO: Cache currently visible ships and recheck them every so often instead of re-creating?
 			// TODO: Actually calculate vision/sensor range
-			for _, ship := range solarManager.ships {
+			for _, ship := range solarManager.Ships {
 				// Check if player can detect ship?
 				temp_ships = append(temp_ships, ship)
 			}
 			user.fromGameManager <- PhysicsUpdateMessage{Ships: temp_ships}
 		}
 		if len(gameManager.Clients) > 0 {
-			last_update_time := time.Now().Sub(solarManager.last_update).Nanoseconds()
+			last_update_time := time.Now().Sub(solarManager.lastUpdate).Nanoseconds()
 			update_time += last_update_time
 			update_count += 1
 
@@ -146,7 +194,7 @@ func (gm *GameManager) HandleGameStart() {
 		ship_id := uint32(index)
 		ship := CreateShip(ship_id, "TestShip")
 
-		gm.Solar.ships[ship_id] = ship
+		gm.Solar.Ships[ship_id] = ship
 		eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
 		gm.IntoSimulator <- *eu
 
@@ -194,10 +242,10 @@ func HandlePhysicsUpdate(msg *EntityUpdate, sm *SolarManager) {
 	case Ship:
 		ship, _ := msg.EntityObj.(Ship)
 		if msg.UpdateType == UpdatePosition {
-			sm.ships[ship.Id].Angle = ship.Angle
-			sm.ships[ship.Id].Position = ship.Position
-			sm.ships[ship.Id].Velocity = ship.Velocity
-			sm.ships[ship.Id].AngularVelocity = ship.AngularVelocity
+			sm.Ships[ship.Id].Angle = ship.Angle
+			sm.Ships[ship.Id].Position = ship.Position
+			sm.Ships[ship.Id].Velocity = ship.Velocity
+			sm.Ships[ship.Id].AngularVelocity = ship.AngularVelocity
 		}
 	}
 }

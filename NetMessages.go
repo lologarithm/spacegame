@@ -14,6 +14,7 @@ const (
 	LoginFail    NetMessageType = 3
 	Physics      NetMessageType = 4
 	SetThrust    NetMessageType = 5
+	GameStatus   NetMessageType = 10
 	Disconnect   NetMessageType = 255
 )
 
