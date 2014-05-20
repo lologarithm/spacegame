@@ -101,7 +101,10 @@ func (sm *ServerManager) ProcessNetMsg(msg GameMessage) {
 			if game, ok := sm.Games[pgMsg.GameId]; ok {
 				game.FromNetwork <- msg
 			}
-
+		case QuitGame:
+			if game, ok := sm.Games[pgMsg.GameId]; ok {
+				game.FromNetwork <- msg
+			}
 		}
 	}
 }
@@ -110,6 +113,12 @@ func (sm *ServerManager) ProcessGameMsg(msg GameMessage) {
 	switch msg.(type) {
 	case *GameStatusMessage:
 		gStatusMsg, _ := msg.(*GameStatusMessage)
+		switch gStatusMsg.GameStatus {
+		case GameInLobby:
+		case GameRunning:
+		case GameEnded:
+			delete(sm.Games, gStatusMsg.GameId)
+		}
 	}
 }
 
