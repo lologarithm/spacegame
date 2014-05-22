@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/lologarithm/spacegame/physics"
 	"time"
 )
 
@@ -25,12 +26,19 @@ type ServerManager struct {
 	Exit        chan int
 }
 
+func NewServerManager() (sm *ServerManager) {
+	sm.Clients = make(map[uint32]*Client, 1)
+	sm.Games = make(map[uint32]*GameManager, 1)
+	sm.FromGames = make(chan GameMessage, 100)
+	return sm
+}
+
 // Manages players and ships for a single game.
 type GameManager struct {
 	// Player data
 	Clients           map[uint32]*Client
-	IntoSimulator     chan EntityUpdate // Channel for sending to physics sim for this game
-	OutSimulator      chan EntityUpdate // Channel for updates from physics sim
+	IntoSimulator     chan physics.PhysicsEntityUpdate // Channel for sending to physics sim for this game
+	OutSimulator      chan physics.PhysicsEntityUpdate // Channel for updates from physics sim
 	IntoServerManager chan GameMessage
 	FromNetwork       chan GameMessage // Messages from players.
 	Exit              chan int
@@ -42,7 +50,7 @@ type GameManager struct {
 type SolarManager struct {
 	Characters map[uint32]*Character
 	Ships      map[uint32]*Ship
-	Simulator  *SolarSimulator
+	Simulator  *physics.SolarSimulator
 	lastUpdate time.Time
 }
 
@@ -88,8 +96,8 @@ func (sm *ServerManager) ProcessNetMsg(msg GameMessage) {
 		case CreateGame:
 			newGame := &GameManager{
 				Clients:           make(map[uint32]*Client, 100),
-				IntoSimulator:     make(chan EntityUpdate, 512),
-				OutSimulator:      make(chan EntityUpdate, 512),
+				IntoSimulator:     make(chan physics.PhysicsEntityUpdate, 512),
+				OutSimulator:      make(chan physics.PhysicsEntityUpdate, 512),
 				FromNetwork:       make(chan GameMessage, 100),
 				IntoServerManager: sm.FromGames,
 			}
@@ -141,9 +149,9 @@ func (sm *ServerManager) HandleLogoff(msg *LoginMessage) {
 func (gameManager *GameManager) RunGame() {
 	solarManager := &SolarManager{Ships: make(map[uint32]*Ship, 50), lastUpdate: time.Now()}
 
-	simulator := &SolarSimulator{
-		outSimulator: gameManager.OutSimulator, intoSimulator: gameManager.IntoSimulator,
-		Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, lastUpdate: time.Now(),
+	simulator := &physics.SolarSimulator{
+		OutSimulator: gameManager.OutSimulator, IntoSimulator: gameManager.IntoSimulator,
+		Entities: map[uint32]*physics.RigidBody{}, Characters: map[uint32]*physics.RigidBody{},
 	}
 	solarManager.Simulator = simulator
 	go simulator.RunSimulation()
@@ -208,7 +216,7 @@ func (gm *GameManager) HandleGameStart() {
 		ship := CreateShip(ship_id, "TestShip")
 
 		gm.Solar.Ships[ship_id] = ship
-		eu := &EntityUpdate{UpdateType: 1, EntityObj: *ship}
+		eu := &physics.PhysicsEntityUpdate{UpdateType: 1, Body: ship.RigidBody}
 		gm.IntoSimulator <- *eu
 
 		client.User.ActiveCharacter.CurrentShip = ship
@@ -228,7 +236,7 @@ func (gm *GameManager) HandleThrust(msg *GameMessage) {
 		return
 	}
 
-	final_force := Vect2{0, 0}
+	final_force := physics.Vect2{0, 0}
 	final_torque := float32(0.0)
 	var t Thruster
 	for ind, thm := range st_msg.ThrustPercent {
@@ -240,30 +248,30 @@ func (gm *GameManager) HandleThrust(msg *GameMessage) {
 		t.Current = t.Max * (float32(thm) / 100.0)
 
 		// Multipy linearvector by force to get total thrust vector.
-		final_force = final_force.Add(MultVect2(t.LinearVector, t.Current))
+		final_force = final_force.Add(physics.MultVect2(t.LinearVector, t.Current))
 		final_torque += t.AngularPercent * t.Current
 	}
 
 	current_char.CurrentShip.Force = final_force
 	current_char.CurrentShip.Torque = final_torque
-	eu := &EntityUpdate{UpdateType: UpdateForces, EntityObj: *current_char.CurrentShip}
+	eu := &physics.PhysicsEntityUpdate{UpdateType: physics.UpdateForces, Body: current_char.CurrentShip.RigidBody}
 	gm.IntoSimulator <- *eu
 }
 
-func HandlePhysicsUpdate(msg *EntityUpdate, sm *SolarManager) {
-	switch msg.EntityObj.(type) {
-	case Ship:
-		ship, _ := msg.EntityObj.(Ship)
-		if msg.UpdateType == UpdatePosition {
-			sm.Ships[ship.Id].Angle = ship.Angle
-			sm.Ships[ship.Id].Position = ship.Position
-			sm.Ships[ship.Id].Velocity = ship.Velocity
-			sm.Ships[ship.Id].AngularVelocity = ship.AngularVelocity
+func HandlePhysicsUpdate(msg *physics.PhysicsEntityUpdate, sm *SolarManager) {
+	if ship, ok := sm.Ships[msg.Body.Id]; ok {
+		if msg.UpdateType == physics.UpdatePosition {
+			ship.Angle = ship.Angle
+			ship.Position = ship.Position
+			ship.Velocity = ship.Velocity
+			ship.AngularVelocity = ship.AngularVelocity
 		}
 	}
+
 }
 
 // TODO: Check if ID already exists (logged off etc) and return that instead of creating.
 func CreateShip(ship_id uint32, hull string) *Ship {
-	return (&Ship{}).CreateTestShip(ship_id, hull)
+	// For now just create a test ship
+	return NewTestShip(ship_id, hull)
 }

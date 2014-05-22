@@ -1,4 +1,4 @@
-package models
+package physics
 
 func CrossProduct(a Vect2, b Vect2) float32 {
 	return a.X*b.Y - a.Y*b.X
@@ -25,6 +25,8 @@ func (v Vect2) Add(v2 Vect2) Vect2 {
 }
 
 type RigidBody struct {
+	Id uint32 // Unique ID for this rigidbody
+
 	Position Vect2 // coords x,y of entity  (meters)
 	Velocity Vect2 // speed in vector format (m/s)
 	Force    Vect2 // Force to apply each tick.
@@ -37,4 +39,10 @@ type RigidBody struct {
 	InvMass    float32 // Inverted mass for physics calcs
 	Inertia    float32 // Inertia of the ship
 	InvInertia float32 // Inverted Inertia for physics calcs
+}
+
+// Update message linked to an Entity.
+type PhysicsEntityUpdate struct {
+	UpdateType byte      // 2 == login, 3 == logoff, 4 == physics update
+	Body       RigidBody // Passed by value through channels
 }

@@ -10,6 +10,18 @@ import (
 
 // TODO: Track 'reliable' messages. Decide which need to be resent.
 
+type Client struct {
+	buffer          []byte
+	clientAddress   *net.UDPAddr
+	fromNetwork     chan []byte      // Bytes from client to server
+	fromGameManager chan GameMessage // GameMessages from GameManger to client
+	toServerManager chan GameMessage // Messages to server manager to join a game
+	toGameManager   chan GameMessage // Messages to the game the client is connected to.
+	User            *User            // User attached to this network client
+	Seq             uint16
+	Quit            bool
+}
+
 // Accepts raw bytes from a socket and turns them into NetMessage objects and then
 // later into GameMessages. These are passed into the GameManager. This function also
 // accepts outgoing messages from the GameManager to the client.

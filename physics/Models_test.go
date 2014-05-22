@@ -1,4 +1,4 @@
-package models
+package physics
 
 import (
 	"fmt"

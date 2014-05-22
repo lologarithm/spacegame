@@ -1,10 +1,14 @@
-package models
+package server
 
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/lologarithm/spacegame/physics"
 )
+
+type Entity interface {
+}
 
 // Users are 'accounts' that can login.
 type User struct {
@@ -21,42 +25,35 @@ type Character struct {
 	CurrentShip *Ship
 }
 
-// Unique data for all in game Entities.
+// Unique data for all in non-physics Entities
 type EntityData struct {
 	Id uint32 // Uniquely id this entity in space
 }
 
-// Update message linked to an Entity.
-type EntityUpdate struct {
-	UpdateType byte   // 2 == login, 3 == logoff, 4 == physics update
-	EntityObj  Entity // Passed by value through channels
-}
-
 type CelestialBody struct {
-	EntityData
 	BodyType string // 'star' 'planet' 'asteroid'
+	physics.RigidBody
 }
 
 // Object to describe a ship.
 // TODO: define all customizable bits, subsystems, power, etc
 type Ship struct {
-	EntityData
-	RigidBody
+	physics.RigidBody
 	Hull *Hull // Ship hull information
 } // TODO: Create "ShipMass" function to override RigidBody Mass.
 
 type Hull struct {
-	Name      string     // Ship hull name
-	Thrusters []Thruster // List of thrusters and current thrust state
-	COM       Vect2      // Center of Mass
+	Name      string        // Ship hull name
+	Thrusters []Thruster    // List of thrusters and current thrust state
+	COM       physics.Vect2 // Center of Mass
 }
 
 type Thruster struct {
-	Max            float32 // Max thrust (N)
-	Current        float32 // Current thrust (N)
-	AngularPercent float32 // Percent of thrust that applies to torque. Can be negative
-	LinearPercent  float32 // Percent of thrust that applies to force
-	LinearVector   Vect2   // Unit Vector to apply thrust in.
+	Max            float32       // Max thrust (N)
+	Current        float32       // Current thrust (N)
+	AngularPercent float32       // Percent of thrust that applies to torque. Can be negative
+	LinearPercent  float32       // Percent of thrust that applies to force
+	LinearVector   physics.Vect2 // Unit Vector to apply thrust in.
 }
 
 // TODO: Move serial/deserial methdos to their own file. No need for them here.
@@ -89,27 +86,23 @@ func (ship *Ship) FromBytes(serial_ship []byte) {
 	ship.Torque = vals[8]
 }
 
-func (ship *Ship) CreateTestShip(id uint32, hull string) *Ship {
+func NewTestShip(id uint32, hull string) (ship *Ship) {
 	ship.Id = id
 	thrusters := []Thruster{
-		Thruster{Max: 100.0, AngularPercent: 0.0, LinearPercent: 1.0, LinearVector: Vect2{0, 1}},
-		Thruster{Max: 50.0, AngularPercent: 1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}},
-		Thruster{Max: 50.0, AngularPercent: -1.0, LinearPercent: 0.0, LinearVector: Vect2{0, 1}}}
+		Thruster{Max: 100.0, AngularPercent: 0.0, LinearPercent: 1.0, LinearVector: physics.Vect2{0, 1}},
+		Thruster{Max: 50.0, AngularPercent: 1.0, LinearPercent: 0.0, LinearVector: physics.Vect2{0, 1}},
+		Thruster{Max: 50.0, AngularPercent: -1.0, LinearPercent: 0.0, LinearVector: physics.Vect2{0, 1}}}
 	ship.Hull = &Hull{Name: hull, Thrusters: thrusters}
 	ship.Mass = 1000.0
 	ship.InvMass = 1.0 / ship.Mass
 	ship.Inertia = 1000.0
 	ship.InvInertia = 1.0 / 1000.0
-	ship.Position = Vect2{0, 0}
-	ship.Velocity = Vect2{0, 0}
-	ship.Force = Vect2{0, 0}
+	ship.Position = physics.Vect2{0, 0}
+	ship.Velocity = physics.Vect2{0, 0}
+	ship.Force = physics.Vect2{0, 0}
 	return ship
 }
 
 func (ship *Ship) String() string {
 	return fmt.Sprintf("ID: %d, Pos: %v, Vel: %v, Force: %v", ship.Id, ship.Position, ship.Velocity, ship.Force)
-}
-
-type Entity interface {
-	// Entity functions to here.
 }

@@ -1,9 +1,8 @@
-package models
+package server
 
 import (
 	"encoding/binary"
 	"fmt"
-	"net"
 )
 
 type NetMessageType byte
@@ -18,18 +17,6 @@ const (
 	GameStatus   NetMessageType = 10
 	Disconnect   NetMessageType = 255
 )
-
-type Client struct {
-	buffer          []byte
-	clientAddress   *net.UDPAddr
-	fromNetwork     chan []byte      // Bytes from client to server
-	fromGameManager chan GameMessage // GameMessages from GameManger to client
-	toServerManager chan GameMessage // Messages to server manager to join a game
-	toGameManager   chan GameMessage // Messages to the game the client is connected to.
-	User            *User            // User attached to this network client
-	Seq             uint16
-	Quit            bool
-}
 
 type NetMessage struct {
 	rawBytes    []byte

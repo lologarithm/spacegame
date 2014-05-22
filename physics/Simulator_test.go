@@ -8,7 +8,7 @@ import (
 
 func TestTick(t *testing.T) {
 	// 1. Create simple scene
-	physics_updates := make(chan EntityUpdate, 200)
+	physics_updates := make(chan PhysicsEntityUpdate, 200)
 	ss := &SolarSimulator{Entities: map[uint32]Entity{}, Characters: map[uint32]Entity{}, outSimulator: physics_updates}
 	ship1 := &Ship{EntityData: EntityData{Id: 1}}
 	ship1.Velocity = Vect2{1, 1}

@@ -1,8 +1,6 @@
 package physics
 
 import (
-	"fmt"
-	"github.com/lologarithm/spacegame/models"
 	"math"
 	"time"
 )
@@ -18,14 +16,15 @@ const (
 )
 
 type SolarSimulator struct {
-	Entities      map[uint32]models.Entity // Anything that can collide in space
-	Characters    map[uint32]models.Entity // Things that can go inside of ships
+	Entities      map[uint32]*RigidBody // Anything that can collide in space
+	Characters    map[uint32]*RigidBody // Things that can go inside of ships
 	lastUpdate    time.Time
-	outSimulator  chan models.EntityUpdate
-	intoSimulator chan models.EntityUpdate
+	OutSimulator  chan PhysicsEntityUpdate
+	IntoSimulator chan PhysicsEntityUpdate
 }
 
 func (ss *SolarSimulator) RunSimulation() {
+	ss.lastUpdate = time.Now()
 	sendUpdate := 0
 	// Wait
 	for {
@@ -36,17 +35,13 @@ func (ss *SolarSimulator) RunSimulation() {
 			case <-time.After(timeout):
 				wait_for_timeout = false
 				break
-			case update_msg := <-ss.intoSimulator:
+			case update_msg := <-ss.IntoSimulator:
 				if update_msg.UpdateType == AddShip {
-					if ship, ok := update_msg.EntityObj.(models.Ship); ok {
-						ss.Entities[ship.Id] = models.Entity(&ship)
-					}
+					ss.Entities[update_msg.Body.Id] = &update_msg.Body
 				} else if update_msg.UpdateType == UpdateForces {
-					if update_ent, ok := update_msg.EntityObj.(models.Ship); ok {
-						if ship, ok := ss.Entities[update_ent.Id].(*models.Ship); ok {
-							ship.Force = update_ent.Force
-							ship.Torque = update_ent.Torque
-						}
+					if body, ok := ss.Entities[update_msg.Body.Id]; ok {
+						body.Force = update_msg.Body.Force
+						body.Torque = update_msg.Body.Torque
 					}
 				}
 			}
@@ -59,39 +54,35 @@ func (ss *SolarSimulator) RunSimulation() {
 }
 
 func (ss *SolarSimulator) Tick(sendUpdate bool) {
-	eu := models.EntityUpdate{UpdateType: UpdatePosition}
+	eu := PhysicsEntityUpdate{UpdateType: UpdatePosition}
 	changed := false
-	for _, entity := range ss.Entities {
-		if ship, ok := entity.(*models.Ship); ok {
-			changed = false
+	for _, rigid := range ss.Entities {
+		changed = false
 
-			ship.Velocity = ship.Velocity.Add(models.MultVect2(ship.Force, ship.InvMass/SimUpdatesPerSecond))
-			ship.AngularVelocity += (ship.Torque * ship.InvInertia) / SimUpdatesPerSecond
+		rigid.Velocity = rigid.Velocity.Add(MultVect2(rigid.Force, rigid.InvMass/SimUpdatesPerSecond))
+		rigid.AngularVelocity += (rigid.Torque * rigid.InvInertia) / SimUpdatesPerSecond
 
-			if ship.Velocity.X != 0.0 {
-				ship.Position.X += ship.Velocity.X / SimUpdatesPerSecond
-				changed = true
+		if rigid.Velocity.X != 0.0 {
+			rigid.Position.X += rigid.Velocity.X / SimUpdatesPerSecond
+			changed = true
+		}
+		if rigid.Velocity.Y != 0.0 {
+			rigid.Position.Y += rigid.Velocity.Y / SimUpdatesPerSecond
+			changed = true
+		}
+		if rigid.AngularVelocity != 0.0 {
+			rigid.Angle += rigid.AngularVelocity / SimUpdatesPerSecond
+			for rigid.Angle > FullCircle {
+				rigid.Angle -= FullCircle
 			}
-			if ship.Velocity.Y != 0.0 {
-				ship.Position.Y += ship.Velocity.Y / SimUpdatesPerSecond
-				changed = true
+			for rigid.Angle < -FullCircle {
+				rigid.Angle += FullCircle
 			}
-			if ship.AngularVelocity != 0.0 {
-				ship.Angle += ship.AngularVelocity / SimUpdatesPerSecond
-				for ship.Angle > FullCircle {
-					ship.Angle -= FullCircle
-				}
-				for ship.Angle < -FullCircle {
-					ship.Angle += FullCircle
-				}
-				changed = true
-			}
-			if changed && sendUpdate {
-				eu.EntityObj = models.Entity(*ship)
-				ss.outSimulator <- eu
-			}
-		} else {
-			fmt.Println("Non-ship entities not supported in Tick yet.")
+			changed = true
+		}
+		if changed && sendUpdate {
+			eu.Body = *rigid
+			ss.OutSimulator <- eu
 		}
 	}
 	// Check for collisions?
