@@ -1,10 +1,14 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workspace />
-  <MonoDevelop.Ide.Workbench ActiveDocument="../../../../../../roguelike/Assets/Scripts/Unity/Renderers/EntityRenderer.cs">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="MonoDevelop.Default" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets/Scripts/MovementController.cs">
     <Files>
-      <File FileName="../../../../../../roguelike/Assets/Scripts/GameEngine/Controllers/EngineController.cs" Line="35" Column="1" />
-      <File FileName="../../../../../../roguelike/Assets/Scripts/Unity/EngineIntegration/MainGameController.cs" Line="63" Column="23" />
+      <File FileName="Assets/Scripts/Controllers/GameController.cs" Line="1" Column="1" />
+      <File FileName="../../../../../../roguelike/Assets/Scripts/GameEngine/Controllers/EngineController.cs" Line="1" Column="1" />
+      <File FileName="../../../../../../roguelike/Assets/Scripts/Unity/EngineIntegration/MainGameController.cs" Line="1" Column="1" />
       <File FileName="../../../../../../roguelike/Assets/Scripts/Unity/Renderers/EntityRenderer.cs" Line="140" Column="3" />
+      <File FileName="Assets/Scripts/Tracker.cs" Line="1" Column="1" />
+      <File FileName="Assets/Scripts/NetMessage.cs" Line="1" Column="1" />
+      <File FileName="Assets/Scripts/MovementController.cs" Line="29" Column="125" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>

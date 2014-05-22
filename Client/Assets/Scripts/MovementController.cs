@@ -17,7 +17,7 @@ public class MovementController : MonoBehaviour {
 		if (Input.GetKey(KeyCode.W)) {
 			Vector3 angles = this.transform.eulerAngles;
 			Vector3 vel = this.rigidbody2D.velocity;
-			this.rigidbody2D.AddForce(new Vector2(Mathf.Sin(rad_convert * angles.z) * -1, Mathf.Cos (rad_convert * angles.z)) * 1);
+			this.rigidbody2D.AddForce(new Vector2(Mathf.Sin(rad_convert * angles.z) * -100, Mathf.Cos (rad_convert * angles.z)) * 100);
 			foreach (ParticleSystem ps in rear_particles) {
 				ps.Emit(1);
 			}
@@ -26,18 +26,18 @@ public class MovementController : MonoBehaviour {
 		if (Input.GetKey(KeyCode.S)) {
 			Vector3 angles = this.transform.eulerAngles;
 			Vector3 vel = this.rigidbody2D.velocity;
-			this.rigidbody2D.AddForce(new Vector2(Mathf.Sin(rad_convert * angles.z) * 1, Mathf.Cos (rad_convert * angles.z)) * -1);
+			this.rigidbody2D.AddForce(new Vector2(Mathf.Sin(rad_convert * angles.z) * 100, Mathf.Cos (rad_convert * angles.z)) * -100);
 			foreach (ParticleSystem ps in front_particles) {
 				ps.Emit(1);
 			}
 		}
 
 		if (Input.GetKey(KeyCode.A)) {
-			this.rigidbody2D.AddTorque(10f);
+			this.rigidbody2D.AddTorque(10000f);
 		}
 
 		if (Input.GetKey(KeyCode.D)) {
-			this.rigidbody2D.AddTorque(-10f);
+			this.rigidbody2D.AddTorque(-10000f);
 		}
 	}
 }
